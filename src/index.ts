@@ -4,5 +4,6 @@ export * from "./vc";
 export * from "./vp";
 export * from "./storage";
 export * from "./transport";
+export * from "./did";
 export * from "./env";
 export * from "./utils/errors";
