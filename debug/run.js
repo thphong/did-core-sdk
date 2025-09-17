@@ -1,13 +1,9 @@
 // scripts/after-build.js
-import { createKeyPair, sign, verify } from "../dist/index.cjs";
+import { didWeb } from "../dist/index.cjs";
+
 
 async function main() {
     try {
-        // const vc = await createVC({
-        //     subjectDid: "did:example:123",
-        //     issuerDid: "did:example:issuer",
-        //     claims: { name: "Alice" }
-        // });
         const publicKeyJwk = {
             "key_ops": ["verify"],
             "ext": true,
@@ -26,16 +22,12 @@ async function main() {
             "kty": "OKP",
             "alg": "Ed25519"
         }
-        const message = new TextEncoder().encode("Hello world").buffer;
-        const message2 = new TextEncoder().encode("Hello world ").buffer;
-        console.log("message: \n", message);
-        const sig = await sign(message2, privateKeyJwk);
-        console.log("✅ Build OK. Sample result:\n", sig);
-        const ver = await verify(message2, sig, publicKeyJwk);
-        console.log("✅ Build OK. Sample result:\n", ver);
+        
+        const doc = await didWeb.resolve("did:web:localhost:5173:did", { protocol:'http' })
+        console.log("✅ Build OK. Sample doc:\n", doc);
     } catch (err) {
         // This will trigger until you implement createVC (your stub throws)
-        console.error("✅ Build OK, but post-build call failed:", err?.message || err);
+        console.error("❌ Build OK, but post-build call failed:", err?.message || err);
     }
 }
 

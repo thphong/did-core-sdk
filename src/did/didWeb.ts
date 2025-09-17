@@ -35,8 +35,18 @@ function didWebToUrl(did: string, opts?: Pick<DidWebResolveOptions, "protocol">)
     if (!parts[0]) throw new Error("Invalid did:web (missing host)");
 
     const protocol = opts?.protocol ?? "https";
-    const host = decodeURIComponent(parts[0]); // handles %3A for port, punycode left as-is
-    const path = parts.slice(1).map(decodeURIComponent).join("/");
+    
+    let host: string;
+    let pathParts: string[];
+    if (parts.length > 1 && /^\d+$/.test(parts[1])) {
+        host = `${decodeURIComponent(parts[0])}:${parts[1]}`;
+        pathParts = parts.slice(2);
+    } else {
+        host = decodeURIComponent(parts[0]);
+        pathParts = parts.slice(1);
+    }
+
+    const path = pathParts.map(decodeURIComponent).join("/");
 
     return path
         ? `${protocol}://${host}/${path}/did.json`
@@ -59,6 +69,7 @@ async function fetchWithTimeout(
 
 /**
  * did:web method implementation
+ * const doc = await didWeb.resolve("did:web:localhost:5173:did", { protocol:'http' })
  */
 export const didWeb: DidMethod = {
     method: "web",
@@ -100,7 +111,7 @@ export const didWeb: DidMethod = {
 
         didCache.set(did, doc, cacheTtlMs);
         return doc;
-    },
+    }
 };
 
 

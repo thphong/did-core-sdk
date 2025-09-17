@@ -97,9 +97,13 @@ function docForDidKey(did: string): DidDocument {
     };
 }
 
+/*
+const objDoc = await didKey.create(publicKeyJwk)
+const doc = await didKey.resolve(objDoc.did)
+*/
 export const didKey: DidMethod = {
     method: "key",
-    async resolve(did: string) {
+    async resolve(did: string): Promise<DidDocument> {
         if (!did.startsWith("did:key:")) throw new Error("Not a did:key DID");
         // We cannot recover the JWK x value purely from DID without decoding—keep it simple:
         // Build a DID doc that uses publicKeyMultibase only.

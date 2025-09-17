@@ -27,4 +27,5 @@ export function registerDidMethod(method: DidMethod) {
     registry.set(method.method, method);
 }
 
+export { didKey, didWeb, didIOTA }
 export * from "./types";
