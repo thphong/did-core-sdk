@@ -24,13 +24,8 @@ export interface DidDocument {
     service?: Service[];
 }
 
-//TODO: Should remove this interface
 export interface DidMethod {
     method: string; // "key", "web", ...
-    create?(opts?: any): Promise<{ did: string; doc: DidDocument }>;
-    resolve(did: string): Promise<DidDocument>;
-}
-
-export interface DidResolver {
-    resolve(did: string): Promise<DidDocument>;
+    create?(publicKeyJwk: JsonWebKey): Promise<{ did: string; doc: DidDocument }>;
+    resolve(did: string, opts?: any): Promise<DidDocument>;
 }

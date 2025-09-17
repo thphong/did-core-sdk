@@ -1,5 +1,5 @@
-import type { DidDocument, DidMethod, DidResolver } from "./types";
-import { didKey, createDidKeyFromJwk } from "./didKey";
+import type { DidDocument, DidMethod } from "./types";
+import { didKey } from "./didKey";
 import { didWeb } from "./didWeb";
 import { didIOTA, setDidIOTAResolverDefaults } from "./didIOTA";
 
@@ -27,7 +27,4 @@ export function registerDidMethod(method: DidMethod) {
     registry.set(method.method, method);
 }
 
-
-
-export { createDidKeyFromJwk };
 export * from "./types";

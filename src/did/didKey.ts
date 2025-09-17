@@ -57,7 +57,7 @@ function b64uToBytes(b64u: string): Uint8Array {
  * DID = "did:key:z" + base58btc(multicodec(0xED) varint + publicKeyRaw)
  * Ed25519 multicodec prefix is 0xED (varint-encoded as [0xED, 0x01])
  */
-export function didFromEd25519Jwk(pubJwk: JsonWebKey): string {
+function didFromEd25519Jwk(pubJwk: JsonWebKey): string {
     if (!pubJwk || pubJwk.kty !== "OKP" || pubJwk.crv !== "Ed25519" || !pubJwk.x) {
         throw new Error("Expected Ed25519 public JWK with 'x'");
     }
@@ -73,9 +73,8 @@ export function didFromEd25519Jwk(pubJwk: JsonWebKey): string {
 /**
  * Create a DID Document for did:key with Ed25519VerificationKey2020 and publicKeyMultibase.
  */
-export function docForDidKey(did: string, pubJwk: JsonWebKey): DidDocument {
+function docForDidKey(did: string): DidDocument {
     // multibase string is the DID suffix after "did:key:"
-    const mb = did.slice("did:key:".length);
     const vmId = `${did}#keys-1`;
     return {
         "@context": [
@@ -89,7 +88,7 @@ export function docForDidKey(did: string, pubJwk: JsonWebKey): DidDocument {
             id: vmId,
             type: "Ed25519VerificationKey2020",
             controller: did,
-            publicKeyMultibase: `z${mb.replace(/^z/, '')}`
+            publicKeyMultibase: did.slice("did:key:".length)
         }],
         authentication: [vmId],
         assertionMethod: [vmId],
@@ -105,29 +104,11 @@ export const didKey: DidMethod = {
         // We cannot recover the JWK x value purely from DID without decoding—keep it simple:
         // Build a DID doc that uses publicKeyMultibase only.
         const vmId = `${did}#keys-1`;
-        return {
-            "@context": [
-                "https://www.w3.org/ns/did/v1",
-                "https://w3id.org/security/suites/ed25519-2020/v1"
-            ],
-            id: did,
-            verificationMethod: [{
-                id: vmId,
-                type: "Ed25519VerificationKey2020",
-                controller: did,
-                publicKeyMultibase: did.slice("did:key:".length) // already multibase (with 'z' prefix)
-            }],
-            authentication: [vmId],
-            assertionMethod: [vmId],
-            capabilityInvocation: [vmId],
-            capabilityDelegation: [vmId]
-        };
+        return docForDidKey(did);
+    },
+    async create(publicKeyJwk: JsonWebKey): Promise<{ did: string; doc: DidDocument }> {
+        const did = didFromEd25519Jwk(publicKeyJwk);
+        const doc = docForDidKey(did);
+        return { did, doc };
     }
 };
-
-/** Helper: derive did:key + doc directly from a public JWK */
-export async function createDidKeyFromJwk(publicKeyJwk: JsonWebKey): Promise<{ did: string; doc: DidDocument }> {
-    const did = didFromEd25519Jwk(publicKeyJwk);
-    const doc = docForDidKey(did, publicKeyJwk);
-    return { did, doc };
-}
