@@ -1,5 +1,5 @@
 // scripts/after-build.js
-//import { didIOTA } from "../dist/index.cjs";
+import { createVC } from "../dist/index.cjs";
 
 
 async function main() {
@@ -23,9 +23,15 @@ async function main() {
             "alg": "Ed25519"
         }
 
-        //const mnemonic = await generateMnemonic();
-        // const doc = await didIOTA.create(publicKeyJwk)
-        console.log("✅ Build OK. Sample doc:\n");
+        const vc = await createVC({
+            issuer: 'did:web:abc.com:identity',
+            subject: 'did:web:identity.hcmut.edu.vn:user:phong',
+            credentialSubject: {
+                degree: 'master',
+                major: 'computer science'
+            }
+        }, privateKeyJwk);
+        console.log("✅ Build OK. Sample doc:\n", vc);
     } catch (err) {
         // This will trigger until you implement createVC (your stub throws)
         console.error("❌ Build OK, but post-build call failed:", err?.message || err);

@@ -200,6 +200,6 @@ async function requestFundsFromFaucet(addressBech32: string) {
     }
 }
 
-(async () => {
-    await loadWasm();
-})();
+// (async () => {
+//     await loadWasm();
+// })();
