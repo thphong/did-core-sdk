@@ -1,5 +1,5 @@
 // scripts/after-build.js
-import { didWeb } from "../dist/index.cjs";
+//import { didIOTA } from "../dist/index.cjs";
 
 
 async function main() {
@@ -22,9 +22,10 @@ async function main() {
             "kty": "OKP",
             "alg": "Ed25519"
         }
-        
-        const doc = await didWeb.resolve("did:web:localhost:5173:did", { protocol:'http' })
-        console.log("✅ Build OK. Sample doc:\n", doc);
+
+        //const mnemonic = await generateMnemonic();
+        // const doc = await didIOTA.create(publicKeyJwk)
+        console.log("✅ Build OK. Sample doc:\n");
     } catch (err) {
         // This will trigger until you implement createVC (your stub throws)
         console.error("❌ Build OK, but post-build call failed:", err?.message || err);

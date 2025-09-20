@@ -39,5 +39,9 @@
     "rimraf": "^6.0.1",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@iota/identity-wasm": "^1.5.1",
+    "@iota/iota-sdk": "^1.6.1"
   }
 }
