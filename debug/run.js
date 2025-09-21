@@ -1,5 +1,5 @@
 // scripts/after-build.js
-import { createVC } from "../dist/index.cjs";
+import { createVC, createDelegatedVC } from "../dist/index.cjs";
 
 
 async function main() {
@@ -31,7 +31,11 @@ async function main() {
                 major: 'computer science'
             }
         }, privateKeyJwk);
+
         console.log("✅ Build OK. Sample doc:\n", vc);
+
+        const delegateVC = await createDelegatedVC(vc, 'did:web:identity.momo.vn:did', { roles: ["ACCESS_BANK"] }, privateKeyJwk)
+        console.log("✅ Build OK. Sample doc:\n", delegateVC);
     } catch (err) {
         // This will trigger until you implement createVC (your stub throws)
         console.error("❌ Build OK, but post-build call failed:", err?.message || err);

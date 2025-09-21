@@ -89,7 +89,7 @@ const sig = await sign(message, privateKeyJwk);
 export async function sign(
     _data: ArrayBuffer,
     _priv: JsonWebKey,
-    _alg: KeyAlgorithm
+    _alg?: KeyAlgorithm
 ): Promise<ArrayBuffer> {
     const alg = _alg ?? "Ed25519";
 
