@@ -10,11 +10,11 @@ registry.set("iota", didIOTA);
 
 // You can later: registry.set("web", didWeb); registry.set("ion", didIon); registry.set("iota", didIota) ...
 
-export async function resolveDid(did: string): Promise<DidDocument> {
+export async function resolveDid(did: string, opts?: any): Promise<DidDocument> {
     const m = did.split(":")[1];
     const handler = registry.get(m);
     if (!handler) throw new Error(`No resolver registered for did:${m}`);
-    return handler.resolve(did);
+    return handler.resolve(did, opts);
 }
 
 export function registerDidMethod(method: DidMethod) {

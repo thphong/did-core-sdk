@@ -193,6 +193,15 @@ export function base64url(buf: ArrayBuffer): string {
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+export function b64urlToArrayBuffer(b64url: string): ArrayBuffer {
+    const pad = (s: string) => s + "===".slice((s.length + 3) % 4);
+    const b64 = pad(b64url.replace(/-/g, "+").replace(/_/g, "/"));
+    const bin = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes.buffer;
+}
+
 // utils: sha-256(ArrayBuffer) → ArrayBuffer
 export async function sha256(ab: ArrayBuffer): Promise<ArrayBuffer> {
     // WebCrypto/Subtle available in both browser & modern Node (via webcrypto)
@@ -203,4 +212,11 @@ export async function sha256(ab: ArrayBuffer): Promise<ArrayBuffer> {
         (await import("node:crypto")).webcrypto.subtle;
 
     return await subtle.digest("SHA-256", ab);
+}
+
+export function algFromProofType(proofType: string): KeyAlgorithm {
+    // We produced types like "Ed25519Signature2020"
+    if (/^Ed25519Signature2020$/i.test(proofType) || !proofType) return "Ed25519";
+    const res = 'ES256' // extend here for ES256K, etc.
+    return res;
 }

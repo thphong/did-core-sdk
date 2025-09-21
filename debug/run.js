@@ -1,43 +1,33 @@
 // scripts/after-build.js
-import { createVC, createVP } from "../dist/index.cjs";
+import { verifyVC } from "../dist/index.cjs";
 
 
 async function main() {
     try {
-        const publicKeyJwk = {
-            "key_ops": ["verify"],
-            "ext": true,
-            "crv": "Ed25519",
-            "x": "dndYUDi2-EmghxLqvTmvWXJeXALhA4xKwo1vE8NYIiE",
-            "kty": "OKP",
-            "alg": "Ed25519"
-        }
 
-        const privateKeyJwk = {
-            "key_ops": ["sign"],
-            "ext": true,
-            "crv": "Ed25519",
-            "d": "MbOljBwnJVYewUprjUnGeDlOgZhdne2HiyqR3Fo3q8M",
-            "x": "dndYUDi2-EmghxLqvTmvWXJeXALhA4xKwo1vE8NYIiE",
-            "kty": "OKP",
-            "alg": "Ed25519"
-        }
-
-        const vc = await createVC({
-            issuer: 'did:web:abc.com:identity',
-            subject: 'did:web:identity.hcmut.edu.vn:user:phong',
+        const vc = {
+            context: ['https://www.w3.org/2018/credentials/v1'],
+            type: ['VerifiableCredential'],
+            issuer: 'did:web:localhost:5173:did:bank',
+            issuanceDate: '2025-09-21T09:13:06.936Z',
+            subject: 'did:web:localhost:5173:did:phong',
             credentialSubject: {
-                degree: 'master',
-                major: 'computer science'
+                id: 'did:web:localhost:5173:did:phong',
+                roles: ['READ_BANK_ACCOUNT', 'MAKE_TRANSACTION']
+            },
+            expirationDate: '2025-10-21T09:13:06.934Z',
+            proof: {
+                type: 'Ed25519Signature2020',
+                created: '2025-09-21T09:13:06.936Z',
+                proofPurpose: 'assertionMethod',
+                verificationMethod: 'did:web:localhost:5173:did:bank#keys-1',
+                jws: 'OHfDDkFsV0r5uJevbLTyy-ILP8_qB57c6yKCryuBTHF4jqjlpxYDoy82_3PsnlnB6BcOHFCBU0Nc9XA9aB3nDg'
             }
-        }, privateKeyJwk);
+        }
 
-        const nonce = crypto.getRandomValues(new Uint32Array(1))[0].toString();
+        const res = await verifyVC(vc)
 
-        console.log("✅ Build OK. nonce:\n", nonce);
-
-        const vp = await createVP([vc], 'did:web:identity.hcmut.edu.vn:user:phong', privateKeyJwk, nonce)
-        console.log("✅ Build OK. Sample doc:\n", vp);
+        console.log("✅ Build OK\n", res);
     } catch (err) {
         // This will trigger until you implement createVC (your stub throws)
         console.error("❌ Build OK, but post-build call failed:", err?.message || err);

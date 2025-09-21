@@ -1,6 +1,7 @@
 import { NotImplementedError } from "../utils/errors";
 
-import { sign, type KeyAlgorithm, base64url } from "../crypto/index"; // <-- you implement or wrap jose library
+import { sign, verify, type KeyAlgorithm, base64url, b64urlToArrayBuffer, algFromProofType } from "../crypto/index"; // <-- you implement or wrap jose library
+import { resolveDid } from "../did/index";
 
 export type VC = {
     context: string[];
@@ -15,14 +16,18 @@ export type VC = {
 };
 
 /*
-const vc = await createVC({
-            issuer: 'did:web:abc.com:identity',
-            subject: 'did:web:identity.hcmut.edu.vn:user:phong',
+const now = new Date();
+        const nextMonth = new Date(now);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+
+        const vc = await createVC({
+            issuer: 'did:web:localhost:5173:did:bank',
+            subject: 'did:web:localhost:5173:did:phong',
+            expirationDate: nextMonth.toISOString(),
             credentialSubject: {
-                degree: 'master',
-                major: 'computer science'
+                roles: ['READ_BANK_ACCOUNT', 'MAKE_TRANSACTION']
             }
-        }, privateKeyJwk);
+        }, privateKeyJwk); 
 */
 export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Promise<VC> {
     const {
@@ -74,10 +79,10 @@ export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Pro
 /**
  * Create a *delegated* VC derived from a parent VC.
  
-const delegateVC = await createDelegatedVC(vc, 'did:web:identity.momo.vn:did', { roles: ["ACCESS_BANK"] }, privateKeyJwk)
+const delegatedVC = await createDelegatedVC(vc, 'did:web:localhost:5173:did:momo', { roles: ['READ_BANK_ACCOUNT'] }, privateKeyJwk, newExpirationDate)
 */
 export async function createDelegatedVC(parentVC: VC, childSubject: string, claims: Record<string, any>,
-    delegatorPrivKey: JsonWebKey): Promise<VC> {
+    delegatorPrivKey: JsonWebKey, expirationDate?: string): Promise<VC> {
     if (!parentVC) throw new Error("Parent VC is required");
     if (!parentVC.proof) {
         throw new Error("Parent VC must have a proof to allow delegation");
@@ -94,11 +99,11 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
         issuer: parentVC.subject,        // B chính là issuer của VC2
         subject: childSubject,              // C là subject mới
         issuanceDate: new Date().toISOString(),
-        ...(parentVC.expirationDate && { expirationDate: parentVC.expirationDate }),
+        ...((expirationDate || parentVC.expirationDate) && { expirationDate: expirationDate || parentVC.expirationDate }),
         credentialSubject: {
             id: childSubject,
             ...claims,
-            delegatedFrom: parentVC.issuer,   // A
+            parentVC: parentVC,
         },
     };
 
@@ -113,18 +118,65 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
         created: childVC.issuanceDate,
         proofPurpose: "delegation",
         verificationMethod: `${parentVC.subject}#keys-1`,  // B's key
-        jws: sigB64,
-        evidence: {
-            delegatedBy: parentVC.issuer,   // A
-            delegatedTo: childVC.subject,   // C
-        }
+        jws: sigB64
     };
 
     return childVC;
 }
 
-export async function verifyVC(_vcId: string): Promise<Boolean> {
-    throw new NotImplementedError("verifyVC for both normal VC and DelegatedVC");
+export async function verifyVC(vc: VC): Promise<boolean> {
+    try {
+        if (!vc || !vc.proof) return false;
+
+        const { proof } = vc;
+
+        // Resolve issuer DID Document
+        const didDoc = await resolveDid(vc.issuer, { protocol: 'http' });
+        if (!didDoc) return false;
+
+        // Locate verification method
+        const vm = didDoc.verificationMethod?.find(
+            (m: any) => m.id === proof.verificationMethod
+        );
+
+        if (!vm || !vm.publicKeyJwk) return false;
+
+        const publicKeyJwk = vm.publicKeyJwk;
+
+        // Rebuild payload (exclude proof)
+        const payload: VC = {
+            context: vc.context,
+            type: vc.type,
+            issuer: vc.issuer,
+            subject: vc.subject,
+            issuanceDate: vc.issuanceDate,
+            credentialSubject: vc.credentialSubject,
+            ...(vc.expirationDate && { expirationDate: vc.expirationDate })
+        };
+        const data = new TextEncoder().encode(JSON.stringify(payload)).buffer;
+
+        // 4. Extract signature
+        const sig = b64urlToArrayBuffer(proof.jws);
+
+        // 5. Verify signature
+        const alg = algFromProofType(proof.type);
+        const valid = await verify(data, sig, publicKeyJwk, alg);
+        if (!valid) return false;
+
+        // 6. Metadata checks
+        const now = Date.now();
+        if (vc.expirationDate && new Date(vc.expirationDate).getTime() < now) {
+            return false; // expired
+        }
+        if (new Date(vc.issuanceDate).getTime() > now) {
+            return false; // issued in the future
+        }
+
+        return true;
+    } catch (err) {
+        console.error("verifyVC error:", err);
+        return false;
+    }
 }
 
 export async function revokeVC(_vcId: string): Promise<void> {
