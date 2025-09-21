@@ -1,5 +1,5 @@
 // scripts/after-build.js
-import { createVC, createDelegatedVC } from "../dist/index.cjs";
+import { createVC, createVP } from "../dist/index.cjs";
 
 
 async function main() {
@@ -32,10 +32,12 @@ async function main() {
             }
         }, privateKeyJwk);
 
-        console.log("✅ Build OK. Sample doc:\n", vc);
+        const nonce = crypto.getRandomValues(new Uint32Array(1))[0].toString();
 
-        const delegateVC = await createDelegatedVC(vc, 'did:web:identity.momo.vn:did', { roles: ["ACCESS_BANK"] }, privateKeyJwk)
-        console.log("✅ Build OK. Sample doc:\n", delegateVC);
+        console.log("✅ Build OK. nonce:\n", nonce);
+
+        const vp = await createVP([vc], 'did:web:identity.hcmut.edu.vn:user:phong', privateKeyJwk, nonce)
+        console.log("✅ Build OK. Sample doc:\n", vp);
     } catch (err) {
         // This will trigger until you implement createVC (your stub throws)
         console.error("❌ Build OK, but post-build call failed:", err?.message || err);
