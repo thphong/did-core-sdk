@@ -5,27 +5,47 @@ import { verifyVC } from "../dist/index.cjs";
 async function main() {
     try {
 
-        const vc = {
+        const delegatedVC = {
             context: ['https://www.w3.org/2018/credentials/v1'],
-            type: ['VerifiableCredential'],
-            issuer: 'did:web:localhost:5173:did:bank',
-            issuanceDate: '2025-09-21T09:13:06.936Z',
-            subject: 'did:web:localhost:5173:did:phong',
+            type: ['VerifiableCredential', 'DelegatedCredential'],
+            issuer: 'did:web:localhost:5173:did:phong',
+            subject: 'did:web:localhost:5173:did:momo',
+            issuanceDate: '2025-09-22T04:54:02.461Z',
+            expirationDate: '2025-10-22T04:47:52.729Z',
             credentialSubject: {
-                id: 'did:web:localhost:5173:did:phong',
-                roles: ['READ_BANK_ACCOUNT', 'MAKE_TRANSACTION']
+                id: 'did:web:localhost:5173:did:momo',
+                roles: ['READ_BANK_ACCOUNT'],
+                parentVC:
+                {
+                    context: ['https://www.w3.org/2018/credentials/v1'],
+                    type: ['VerifiableCredential'],
+                    issuer: 'did:web:localhost:5173:did:bank',
+                    issuanceDate: '2025-09-22T04:47:52.731Z',
+                    subject: 'did:web:localhost:5173:did:phong',
+                    credentialSubject: {
+                        id: 'did:web:localhost:5173:did:phong',
+                        roles: ['READ_BANK_ACCOUNT', 'MAKE_TRANSACTION']
+                    },
+                    expirationDate: '2025-10-22T04:47:52.729Z',
+                    proof: {
+                        type: 'Ed25519Signature2020',
+                        created: '2025-09-22T04:47:52.731Z',
+                        proofPurpose: 'assertionMethod',
+                        verificationMethod: 'did:web:localhost:5173:did:bank#keys-1',
+                        jws: '3CHyq_DtLsnXHNOyHvyOXlNaA0sx7u0BTR4h3Wr1dE3IdLDFgEMMrNRd3LeVSL0TmxRiUPb0X6JL5OQ_4JUzDQ'
+                    }
+                }
             },
-            expirationDate: '2025-10-21T09:13:06.934Z',
             proof: {
                 type: 'Ed25519Signature2020',
-                created: '2025-09-21T09:13:06.936Z',
-                proofPurpose: 'assertionMethod',
-                verificationMethod: 'did:web:localhost:5173:did:bank#keys-1',
-                jws: 'OHfDDkFsV0r5uJevbLTyy-ILP8_qB57c6yKCryuBTHF4jqjlpxYDoy82_3PsnlnB6BcOHFCBU0Nc9XA9aB3nDg'
+                created: '2025-09-22T04:54:02.461Z',
+                proofPurpose: 'delegation',
+                verificationMethod: 'did:web:localhost:5173:did:phong#keys-1',
+                jws: 'xchvx8C8-p-pqwaNNPX9O9TiP7rcCmJUazw2InzgZwksiYB_49mEwvkRqGi1DOTk7TQmgWG-lwMQzsaf3Q8tAA'
             }
         }
 
-        const res = await verifyVC(vc)
+        const res = await verifyVC(delegatedVC)
 
         console.log("✅ Build OK\n", res);
     } catch (err) {

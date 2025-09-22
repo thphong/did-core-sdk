@@ -1,4 +1,4 @@
-import { sign, verify, type KeyAlgorithm, base64url, b64urlToArrayBuffer, algFromProofType } from "../crypto/index";
+import { sign, verify, type KeyAlgorithm, base64url, b64urlToArrayBuffer, algFromProofType, canonicalize } from "../crypto/index";
 import { resolveDid } from "../did/index";
 import { verifyVC } from "../vc/index";
 
@@ -41,7 +41,7 @@ export async function createVP(
     };
 
     //Canonicalize / serialize for signing
-    const vpBytes = new TextEncoder().encode(JSON.stringify(vp));
+    const vpBytes = new TextEncoder().encode(canonicalize(vp));
 
     const sigBuf = await sign(vpBytes.buffer, holderPrivateKeyJwk, algorithm);
 
@@ -93,7 +93,7 @@ export async function verifyVP(vp: VP): Promise<boolean> {
             holder: vp.holder,
             challenge: vp.proof.challenge ?? "",
         };
-        const data = new TextEncoder().encode(JSON.stringify(payload)).buffer; // Uint8Array
+        const data = new TextEncoder().encode(canonicalize(payload)).buffer; // Uint8Array
 
         const sig = b64urlToArrayBuffer(vp.proof.jws); // ArrayBuffer
 

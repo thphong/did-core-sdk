@@ -1,6 +1,6 @@
 import { NotImplementedError } from "../utils/errors";
 
-import { sign, verify, type KeyAlgorithm, base64url, b64urlToArrayBuffer, algFromProofType } from "../crypto/index"; // <-- you implement or wrap jose library
+import { sign, verify, type KeyAlgorithm, base64url, b64urlToArrayBuffer, algFromProofType, canonicalize } from "../crypto/index"; // <-- you implement or wrap jose library
 import { resolveDid } from "../did/index";
 
 export type VC = {
@@ -56,7 +56,7 @@ export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Pro
     };
 
     //Serialize VC to bytes for signing
-    const vcBytes = new TextEncoder().encode(JSON.stringify(vc));
+    const vcBytes = new TextEncoder().encode(canonicalize(vc));
 
     //Sign with vc
     const sigBuf = await sign(vcBytes.buffer, issuerPrivateKeyJwk, algorithm);
@@ -90,14 +90,13 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
 
     //TODO
     //Check claims belongs to parentVC.credentialSubject
-    //Proof chain from parentVC also
 
     // VC con do B cấp cho C
     const childVC: VC = {
         context: [...new Set([...parentVC.context, "https://www.w3.org/2018/credentials/v1"])],
         type: [...new Set([...parentVC.type, "DelegatedCredential"])],
-        issuer: parentVC.subject,        // B chính là issuer của VC2
-        subject: childSubject,              // C là subject mới
+        issuer: parentVC.subject,
+        subject: childSubject,
         issuanceDate: new Date().toISOString(),
         ...((expirationDate || parentVC.expirationDate) && { expirationDate: expirationDate || parentVC.expirationDate }),
         credentialSubject: {
@@ -108,7 +107,8 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
     };
 
     // Serialize và ký bằng private key của B
-    const vcBytes = new TextEncoder().encode(JSON.stringify(childVC));
+    const vcBytes = new TextEncoder().encode(canonicalize(childVC));
+
     const sigBuf = await sign(vcBytes.buffer, delegatorPrivKey, childVC.algorithm);
     const sigB64 = base64url(sigBuf);
 
@@ -123,7 +123,9 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
 
     return childVC;
 }
-
+/*
+const res = await verifyVC(vc)
+*/
 export async function verifyVC(vc: VC): Promise<boolean> {
     try {
         if (!vc || !vc.proof) return false;
@@ -148,12 +150,12 @@ export async function verifyVC(vc: VC): Promise<boolean> {
             context: vc.context,
             type: vc.type,
             issuer: vc.issuer,
-            subject: vc.subject,
             issuanceDate: vc.issuanceDate,
+            subject: vc.subject,
             credentialSubject: vc.credentialSubject,
             ...(vc.expirationDate && { expirationDate: vc.expirationDate })
         };
-        const data = new TextEncoder().encode(JSON.stringify(payload)).buffer;
+        const data = new TextEncoder().encode(canonicalize(payload)).buffer;
 
         // 4. Extract signature
         const sig = b64urlToArrayBuffer(proof.jws);
@@ -170,6 +172,16 @@ export async function verifyVC(vc: VC): Promise<boolean> {
         }
         if (new Date(vc.issuanceDate).getTime() > now) {
             return false; // issued in the future
+        }
+
+        //Check parent VC if any
+        const parentVC = vc.credentialSubject.parentVC;
+        if (parentVC) {
+            const verParent = await verifyVC(parentVC);
+            if (!verParent) return false;
+            if (parentVC.subject != vc.issuer) return false;
+
+            //TODO: Check in scope, roles in vc.credentialSubject.roles should be subset of parentVC.credentialSubject.roles
         }
 
         return true;
