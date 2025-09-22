@@ -20,7 +20,7 @@ export interface VP {
 
 /*
 const nonce = crypto.getRandomValues(new Uint32Array(1))[0].toString();
-const vp = await createVP([vc], 'did:web:identity.hcmut.edu.vn:user:phong', privateKeyJwk, nonce)
+const vp = await createVP([vc], 'did:web:localhost:5173:did:phong', privateKeyJwk, nonce)
 */
 export async function createVP(
     vcs: any[],
@@ -60,26 +60,17 @@ export async function createVP(
 }
 
 /*
-"verificationMethod": [
-        {
-            "id": "did:web:localhost:5173:did#keys-1",
-            "type": "Ed25519VerificationKey2020",
-            "controller": "did:web:localhost:5173:did",
-            "publicKeyJwk": {
-                "kty": "OKP",
-                "crv": "Ed25519",
-                "x": "dndYUDi2-EmghxLqvTmvWXJeXALhA4xKwo1vE8NYIiE"
-            }
-        }
-    ],
-*/
+const nonce = '1937849724';
+const res = await verifyVP(vp, 'did:web:localhost:5173:did:phong', 'did:web:localhost:5173:did:bank', nonce)
 
-export async function verifyVP(vp: VP): Promise<boolean> {
+const nonce = '3265573931';
+const res = await verifyVP(vp, 'did:web:localhost:5173:did:momo', 'did:web:localhost:5173:did:phong', nonce, 'did:web:localhost:5173:did:bank')
+*/
+export async function verifyVP(vp: VP, holderDid: string, issuerDid: string, nonce: string, parentIssuerDid?: string): Promise<boolean> {
     try {
         if (!vp?.proof?.jws) return false;
-
         const alg = algFromProofType(vp.proof.type);
-        const didDoc = await resolveDid(vp.holder!);
+        const didDoc = await resolveDid(vp.holder, { protocol: 'http' });
         if (!didDoc) return false;
 
         const publicKeyJwk = didDoc.verificationMethod?.[0]?.publicKeyJwk;
@@ -90,8 +81,8 @@ export async function verifyVP(vp: VP): Promise<boolean> {
             context: vp.context,
             type: vp.type,
             verifiableCredential: vp.verifiableCredential,
-            holder: vp.holder,
-            challenge: vp.proof.challenge ?? "",
+            holder: holderDid,
+            challenge: nonce ?? "",
         };
         const data = new TextEncoder().encode(canonicalize(payload)).buffer; // Uint8Array
 
@@ -105,6 +96,12 @@ export async function verifyVP(vp: VP): Promise<boolean> {
         for (const vc of vp.verifiableCredential) {
             const okVC = await verifyVC(vc);
             if (!okVC) return false;
+            if (vc.subject != holderDid) return false;
+            if (vc.issuer != issuerDid) return false;
+            const parentVC = vc.credentialSubject.parentVC;
+            if (parentVC) {
+                if (parentVC.issuer != parentIssuerDid) return false;
+            }
         }
         return true;
     } catch {
