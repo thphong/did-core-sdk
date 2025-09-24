@@ -61,16 +61,16 @@ export async function createVP(
 
 /*
 const nonce = '1937849724';
-const res = await verifyVP(vp, 'did:web:localhost:5173:did:phong', 'did:web:localhost:5173:did:bank', nonce)
+const res = await verifyVP(vp, 'did:web:localhost:5173:did:phong', 'did:web:localhost:5173:did:bank', nonce, '', {protocol: 'http'})
 
 const nonce = '3265573931';
-const res = await verifyVP(vp, 'did:web:localhost:5173:did:momo', 'did:web:localhost:5173:did:phong', nonce, 'did:web:localhost:5173:did:bank')
+const res = await verifyVP(vp, 'did:web:localhost:5173:did:momo', 'did:web:localhost:5173:did:phong', nonce, 'did:web:localhost:5173:did:bank', {protocol: 'http'})
 */
-export async function verifyVP(vp: VP, holderDid: string, issuerDid: string, nonce: string, parentIssuerDid?: string): Promise<boolean> {
+export async function verifyVP(vp: VP, holderDid: string, issuerDid: string, nonce: string, parentIssuerDid?: string, opts?: any): Promise<boolean> {
     try {
         if (!vp?.proof?.jws) return false;
         const alg = algFromProofType(vp.proof.type);
-        const didDoc = await resolveDid(vp.holder, { protocol: 'http' });
+        const didDoc = await resolveDid(vp.holder, opts);
         if (!didDoc) return false;
 
         const publicKeyJwk = didDoc.verificationMethod?.[0]?.publicKeyJwk;
@@ -94,7 +94,7 @@ export async function verifyVP(vp: VP, holderDid: string, issuerDid: string, non
         if (!vp.verifiableCredential?.length) return false;
 
         for (const vc of vp.verifiableCredential) {
-            const okVC = await verifyVC(vc);
+            const okVC = await verifyVC(vc, opts);
             if (!okVC) return false;
             if (vc.subject != holderDid) return false;
             if (vc.issuer != issuerDid) return false;

@@ -25,9 +25,12 @@ const now = new Date();
             subject: 'did:web:localhost:5173:did:phong',
             expirationDate: nextMonth.toISOString(),
             credentialSubject: {
-                roles: ['READ_BANK_ACCOUNT', 'MAKE_TRANSACTION']
+                roles: {
+                    READ_BANK_ACCOUNT: 'Allow to read account balance',
+                    MAKE_TRANSACTION: 'Allow to make a transaction'
+                }
             }
-        }, privateKeyJwk); 
+        }, privateKeyJwk);
 */
 export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Promise<VC> {
     const {
@@ -75,11 +78,30 @@ export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Pro
     return vc;
 }
 
+function checkSubObject(parentObj: any, childObj: any): boolean {
+    if (typeof parentObj !== "object" || typeof childObj !== "object" || parentObj === null || childObj === null) {
+        return false;
+    }
+
+    for (const key of Object.keys(childObj)) {
+        if (!(key in parentObj)) {
+            return false; // key missing in parent
+        }
+        if (parentObj[key] !== childObj[key]) {
+            return false; // value mismatch
+        }
+    }
+
+    return true;
+}
 
 /**
  * Create a *delegated* VC derived from a parent VC.
- 
-const delegatedVC = await createDelegatedVC(vc, 'did:web:localhost:5173:did:momo', { roles: ['READ_BANK_ACCOUNT'] }, privateKeyJwk, newExpirationDate)
+const res = await createDelegatedVC(vc, 'did:web:localhost:5173:did:momo', {
+            roles: {
+                READ_BANK_ACCOUNT: 'Allow to read account balance'
+            }
+        }, privateKeyJwk, newExpirationDate);
 */
 export async function createDelegatedVC(parentVC: VC, childSubject: string, claims: Record<string, any>,
     delegatorPrivKey: JsonWebKey, expirationDate?: string): Promise<VC> {
@@ -88,8 +110,11 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
         throw new Error("Parent VC must have a proof to allow delegation");
     }
 
-    //TODO
-    //Check claims belongs to parentVC.credentialSubject
+    for (const key of Object.keys(claims)) {
+        if (!checkSubObject(parentVC.credentialSubject[key], claims[key])) {
+            throw new Error("Parent VC's credentialSubject must contains all info for claims");
+        }
+    }
 
     // VC con do B cấp cho C
     const childVC: VC = {
@@ -124,16 +149,16 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
     return childVC;
 }
 /*
-const res = await verifyVC(vc)
+const res = await verifyVC(vc, {protocol: 'http'})
 */
-export async function verifyVC(vc: VC): Promise<boolean> {
+export async function verifyVC(vc: VC, opts?: any): Promise<boolean> {
     try {
         if (!vc || !vc.proof) return false;
 
         const { proof } = vc;
 
         // Resolve issuer DID Document
-        const didDoc = await resolveDid(vc.issuer, { protocol: 'http' });
+        const didDoc = await resolveDid(vc.issuer, opts);
         if (!didDoc) return false;
 
         // Locate verification method
@@ -177,11 +202,17 @@ export async function verifyVC(vc: VC): Promise<boolean> {
         //Check parent VC if any
         const parentVC = vc.credentialSubject.parentVC;
         if (parentVC) {
-            const verParent = await verifyVC(parentVC);
+            const verParent = await verifyVC(parentVC, opts);
             if (!verParent) return false;
             if (parentVC.subject != vc.issuer) return false;
 
-            //TODO: Check in scope, roles in vc.credentialSubject.roles should be subset of parentVC.credentialSubject.roles
+            for (const key of Object.keys(vc.credentialSubject)) {
+                if (key != "id" && key != "parentVC") {
+                    if (!checkSubObject(parentVC.credentialSubject[key], vc.credentialSubject[key])) {
+                        throw new Error("Parent VC's credentialSubject must contains all info for claims");
+                    }
+                }
+            }
         }
 
         return true;
@@ -191,7 +222,7 @@ export async function verifyVC(vc: VC): Promise<boolean> {
     }
 }
 
-export async function revokeVC(_vcId: string): Promise<void> {
+export async function revokeVC(vc: VC): Promise<void> {
     throw new NotImplementedError("revokeVC");
 }
 
