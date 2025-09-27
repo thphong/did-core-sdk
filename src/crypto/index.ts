@@ -190,7 +190,7 @@ export function base64url(buf: ArrayBuffer): string {
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-export function b64urlToArrayBuffer(b64url: string): ArrayBuffer {
+export function b64uToArrayBuffer(b64url: string): ArrayBuffer {
     const pad = (s: string) => s + "===".slice((s.length + 3) % 4);
     const b64 = pad(b64url.replace(/-/g, "+").replace(/_/g, "/"));
     if (typeof atob !== "function") {

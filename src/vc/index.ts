@@ -1,6 +1,6 @@
 import { NotImplementedError } from "../utils/errors";
 
-import { sign, verify, type KeyAlgorithm, base64url, b64urlToArrayBuffer, algFromProofType, canonicalize } from "../crypto/index"; // <-- you implement or wrap jose library
+import { sign, verify, type KeyAlgorithm, base64url, b64uToArrayBuffer, algFromProofType, canonicalize } from "../crypto/index"; // <-- you implement or wrap jose library
 import { resolveDid } from "../did/index";
 
 export type VC = {
@@ -183,7 +183,7 @@ export async function verifyVC(vc: VC, opts?: any): Promise<boolean> {
         const data = new TextEncoder().encode(canonicalize(payload)).buffer;
 
         // 4. Extract signature
-        const sig = b64urlToArrayBuffer(proof.jws);
+        const sig = b64uToArrayBuffer(proof.jws);
 
         // 5. Verify signature
         const alg = algFromProofType(proof.type);

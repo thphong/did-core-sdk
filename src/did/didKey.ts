@@ -1,6 +1,6 @@
 // Minimal did:key (Ed25519) support with zero deps.
 // Build DID from an Ed25519 public JWK { kty:"OKP", crv:"Ed25519", x: <base64url> }.
-
+import { b64uToArrayBuffer } from "../crypto/index"
 import type { DidDocument, DidMethod } from "./types";
 
 // Base58BTC alphabet
@@ -35,22 +35,6 @@ function base58btc(bytes: Uint8Array): string {
     return out;
 }
 
-// base64url → bytes
-function b64uToBytes(b64u: string): Uint8Array {
-    const pad = "=".repeat((4 - (b64u.length % 4)) % 4);
-    const b64 = (b64u.replace(/-/g, "+").replace(/_/g, "/")) + pad;
-    if (typeof atob === "function") {
-        const bin = atob(b64);
-        const out = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-        return out;
-    } else {
-        // Node / RN
-        // @ts-ignore
-        const buf = Buffer.from(b64, "base64");
-        return new Uint8Array(buf);
-    }
-}
 
 /**
  * Build a did:key (Ed25519) from an Ed25519 public JWK.
@@ -61,7 +45,7 @@ function didFromEd25519Jwk(pubJwk: JsonWebKey): string {
     if (!pubJwk || pubJwk.kty !== "OKP" || pubJwk.crv !== "Ed25519" || !pubJwk.x) {
         throw new Error("Expected Ed25519 public JWK with 'x'");
     }
-    const x = b64uToBytes(pubJwk.x); // 32 bytes
+    const x = new Uint8Array(b64uToArrayBuffer(pubJwk.x)); // 32 bytes
     const prefix = new Uint8Array([0xed, 0x01]); // multicodec varint for Ed25519-pub
     const multi = new Uint8Array(prefix.length + x.length);
     multi.set(prefix, 0);

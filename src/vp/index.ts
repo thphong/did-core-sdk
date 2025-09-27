@@ -1,4 +1,4 @@
-import { sign, verify, type KeyAlgorithm, base64url, b64urlToArrayBuffer, algFromProofType, canonicalize } from "../crypto/index";
+import { sign, verify, type KeyAlgorithm, base64url, b64uToArrayBuffer, algFromProofType, canonicalize } from "../crypto/index";
 import { resolveDid } from "../did/index";
 import { verifyVC } from "../vc/index";
 
@@ -86,7 +86,7 @@ export async function verifyVP(vp: VP, holderDid: string, issuerDid: string, non
         };
         const data = new TextEncoder().encode(canonicalize(payload)).buffer; // Uint8Array
 
-        const sig = b64urlToArrayBuffer(vp.proof.jws); // ArrayBuffer
+        const sig = b64uToArrayBuffer(vp.proof.jws); // ArrayBuffer
 
         const ok = await verify(data, sig, publicKeyJwk, alg);
         if (!ok) return false;
