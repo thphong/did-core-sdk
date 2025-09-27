@@ -1,6 +1,6 @@
 import { NotImplementedError } from "../utils/errors";
 
-import { sign, verify, type KeyAlgorithm, base64url, b64uToArrayBuffer, algFromProofType, canonicalize } from "../crypto/index"; // <-- you implement or wrap jose library
+import { sign, verify, type KeyAlgorithm, arrBuftobase64u, b64uToArrBuf, algFromProofType, canonicalize } from "../crypto/index"; // <-- you implement or wrap jose library
 import { resolveDid } from "../did/index";
 
 export type VC = {
@@ -64,7 +64,7 @@ export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Pro
     //Sign with vc
     const sigBuf = await sign(vcBytes.buffer, issuerPrivateKeyJwk, algorithm);
 
-    const sigB64 = base64url(sigBuf);
+    const sigB64 = arrBuftobase64u(sigBuf);
 
     //Build proof section
     vc.proof = {
@@ -135,7 +135,7 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
     const vcBytes = new TextEncoder().encode(canonicalize(childVC));
 
     const sigBuf = await sign(vcBytes.buffer, delegatorPrivKey, childVC.algorithm);
-    const sigB64 = base64url(sigBuf);
+    const sigB64 = arrBuftobase64u(sigBuf);
 
     // Gắn proof trực tiếp
     childVC.proof = {
@@ -183,7 +183,7 @@ export async function verifyVC(vc: VC, opts?: any): Promise<boolean> {
         const data = new TextEncoder().encode(canonicalize(payload)).buffer;
 
         // 4. Extract signature
-        const sig = b64uToArrayBuffer(proof.jws);
+        const sig = b64uToArrBuf(proof.jws);
 
         // 5. Verify signature
         const alg = algFromProofType(proof.type);

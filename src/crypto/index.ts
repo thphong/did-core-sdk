@@ -183,14 +183,14 @@ export function canonicalize(obj: any): string {
     return JSON.stringify(sorter(obj));
 }
 
-// utils: base64url(ArrayBuffer) → string
-export function base64url(buf: ArrayBuffer): string {
+// utils: arrBuftobase64u(ArrayBuffer) → string
+export function arrBuftobase64u(buf: ArrayBuffer): string {
     const bin = String.fromCharCode(...new Uint8Array(buf));
     const b64 = btoa(bin);
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-export function b64uToArrayBuffer(b64url: string): ArrayBuffer {
+export function b64uToArrBuf(b64url: string): ArrayBuffer {
     const pad = (s: string) => s + "===".slice((s.length + 3) % 4);
     const b64 = pad(b64url.replace(/-/g, "+").replace(/_/g, "/"));
     if (typeof atob !== "function") {
@@ -214,4 +214,56 @@ export function algFromProofType(proofType: string): KeyAlgorithm {
     if (/^Ed25519Signature2020$/i.test(proofType) || !proofType) return "Ed25519";
     const res = 'ES256' // extend here for ES256K, etc.
     return res;
+}
+
+export async function deriveStoreKey(
+    password: string,
+    salt: ArrayBuffer,
+    iterations = 200_000
+): Promise<CryptoKey> {
+    const enc = new TextEncoder();
+    const subtle = await getSubtle();
+    const baseKey = await subtle.importKey(
+        "raw",
+        enc.encode(password),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+    );
+    return subtle.deriveKey(
+        { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+        baseKey,
+        { name: "AES-GCM", length: 256 },
+        false,
+        ["encrypt", "decrypt"]
+    );
+}
+
+export function randomBytes(n = 12): ArrayBuffer {
+    const u8 = new Uint8Array(n);
+    crypto.getRandomValues(u8);
+    return u8.buffer;
+}
+
+export async function encryptAesGcm(
+    key: CryptoKey,
+    data: ArrayBuffer
+): Promise<{
+    iv: ArrayBuffer;
+    ct: ArrayBuffer;
+}> {
+    const iv = randomBytes(12);
+    const subtle = await getSubtle();
+    const ct = await subtle.encrypt({ name: "AES-GCM", iv }, key, data);
+    return { iv, ct };
+}
+
+export async function decryptAesGcm(
+    key: CryptoKey,
+    iv: ArrayBuffer,
+    ct: ArrayBuffer
+) {
+    const subtle = await getSubtle();
+    const pt = await subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+    return pt;
 }

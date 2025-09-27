@@ -1,6 +1,6 @@
 // Minimal did:key (Ed25519) support with zero deps.
-// Build DID from an Ed25519 public JWK { kty:"OKP", crv:"Ed25519", x: <base64url> }.
-import { b64uToArrayBuffer } from "../crypto/index"
+// Build DID from an Ed25519 public JWK { kty:"OKP", crv:"Ed25519", x: <arrBuftobase64u> }.
+import { b64uToArrBuf } from "../crypto/index"
 import type { DidDocument, DidMethod } from "./types";
 
 // Base58BTC alphabet
@@ -45,7 +45,7 @@ function didFromEd25519Jwk(pubJwk: JsonWebKey): string {
     if (!pubJwk || pubJwk.kty !== "OKP" || pubJwk.crv !== "Ed25519" || !pubJwk.x) {
         throw new Error("Expected Ed25519 public JWK with 'x'");
     }
-    const x = new Uint8Array(b64uToArrayBuffer(pubJwk.x)); // 32 bytes
+    const x = new Uint8Array(b64uToArrBuf(pubJwk.x)); // 32 bytes
     const prefix = new Uint8Array([0xed, 0x01]); // multicodec varint for Ed25519-pub
     const multi = new Uint8Array(prefix.length + x.length);
     multi.set(prefix, 0);

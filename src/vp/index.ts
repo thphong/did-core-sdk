@@ -1,4 +1,4 @@
-import { sign, verify, type KeyAlgorithm, base64url, b64uToArrayBuffer, algFromProofType, canonicalize } from "../crypto/index";
+import { sign, verify, type KeyAlgorithm, arrBuftobase64u, b64uToArrBuf, algFromProofType, canonicalize } from "../crypto/index";
 import { resolveDid } from "../did/index";
 import { verifyVC } from "../vc/index";
 
@@ -45,7 +45,7 @@ export async function createVP(
 
     const sigBuf = await sign(vpBytes.buffer, holderPrivateKeyJwk, algorithm);
 
-    const sigB64 = base64url(sigBuf);
+    const sigB64 = arrBuftobase64u(sigBuf);
 
     vp.proof = {
         type: algorithm + "Signature2020",
@@ -86,7 +86,7 @@ export async function verifyVP(vp: VP, holderDid: string, issuerDid: string, non
         };
         const data = new TextEncoder().encode(canonicalize(payload)).buffer; // Uint8Array
 
-        const sig = b64uToArrayBuffer(vp.proof.jws); // ArrayBuffer
+        const sig = b64uToArrBuf(vp.proof.jws); // ArrayBuffer
 
         const ok = await verify(data, sig, publicKeyJwk, alg);
         if (!ok) return false;
