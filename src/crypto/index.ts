@@ -31,15 +31,11 @@ function toArrayBuffer(data: BufferSource): ArrayBuffer {
 }
 
 async function getSubtle(): Promise<SubtleCrypto> {
-    if (typeof globalThis !== "undefined" && (globalThis as any).crypto?.subtle) {
-        return (globalThis as any).crypto.subtle as SubtleCrypto;
-    }
-    try {
-        const nodeCrypto: typeof import("node:crypto") = await import("node:crypto");
-        if (nodeCrypto.webcrypto?.subtle) return nodeCrypto.webcrypto.subtle as SubtleCrypto;
-    } catch { /* ignore */ }
-    throw new Error("WebCrypto SubtleCrypto is not available in this runtime.");
+    const subtle = globalThis?.crypto?.subtle as SubtleCrypto | undefined;
+    if (!subtle) throw new Error("WebCrypto SubtleCrypto is not available in this runtime.");
+    return subtle;
 }
+
 
 //Sample call: await createKeyPair();
 export async function createKeyPair(_alg: KeyAlgorithm = "Ed25519"): Promise<KeyPair> {
@@ -189,14 +185,19 @@ export function canonicalize(obj: any): string {
 
 // utils: base64url(ArrayBuffer) → string
 export function base64url(buf: ArrayBuffer): string {
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    const bin = String.fromCharCode(...new Uint8Array(buf));
+    const b64 = btoa(bin);
     return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 export function b64urlToArrayBuffer(b64url: string): ArrayBuffer {
     const pad = (s: string) => s + "===".slice((s.length + 3) % 4);
     const b64 = pad(b64url.replace(/-/g, "+").replace(/_/g, "/"));
-    const bin = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+    if (typeof atob !== "function") {
+        // tiny fallback: pure JS base64 decoder (no Buffer). Hoặc yêu cầu env cung cấp atob.
+        throw new Error("Base64 decoder (atob) not available in this runtime.");
+    }
+    const bin = atob(b64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return bytes.buffer;
@@ -204,14 +205,8 @@ export function b64urlToArrayBuffer(b64url: string): ArrayBuffer {
 
 // utils: sha-256(ArrayBuffer) → ArrayBuffer
 export async function sha256(ab: ArrayBuffer): Promise<ArrayBuffer> {
-    // WebCrypto/Subtle available in both browser & modern Node (via webcrypto)
-    // If your getSubtle() helper exists, you can use it instead.
-    const subtle: SubtleCrypto =
-        (globalThis.crypto && globalThis.crypto.subtle) ||
-        // @ts-ignore - for older Node envs, you can polyfill or inject
-        (await import("node:crypto")).webcrypto.subtle;
-
-    return await subtle.digest("SHA-256", ab);
+    const subtle = await getSubtle();
+    return subtle.digest("SHA-256", ab);
 }
 
 export function algFromProofType(proofType: string): KeyAlgorithm {
