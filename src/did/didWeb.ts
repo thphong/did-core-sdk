@@ -35,7 +35,7 @@ function didWebToUrl(did: string, opts?: Pick<DidWebResolveOptions, "protocol">)
     if (!parts[0]) throw new Error("Invalid did:web (missing host)");
 
     const protocol = opts?.protocol ?? "https";
-    
+
     let host: string;
     let pathParts: string[];
     if (parts.length > 1 && /^\d+$/.test(parts[1])) {
@@ -111,6 +111,27 @@ export const didWeb: DidMethod = {
 
         didCache.set(did, doc, cacheTtlMs);
         return doc;
+    },
+    async create(publicKeyJwk: JsonWebKey, did: string): Promise<{ did: string; doc: DidDocument }> {
+        const vmId = `${did}#keys-1`;
+        const doc = {
+            "@context": ["https://www.w3.org/ns/did/v1"],
+            id: did,
+            verificationMethod: [
+                {
+                    id: vmId,
+                    type: "Ed25519VerificationKey2020",
+                    controller: did,
+                    publicKeyJwk: publicKeyJwk
+                }
+            ],
+            authentication: [vmId],
+            assertionMethod: [vmId],
+            capabilityInvocation: [vmId],
+            capabilityDelegation: [vmId]
+        }
+
+        return { did, doc };
     }
 };
 

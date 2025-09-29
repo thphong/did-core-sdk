@@ -8,7 +8,7 @@ export interface KeyPair {
     privateKeyJwk?: JsonWebKey;
 }
 
-function toArrayBuffer(data: BufferSource): ArrayBuffer {
+export function toArrayBuffer(data: BufferSource): ArrayBuffer {
     if (data instanceof ArrayBuffer) return data;
 
     // Covers all ArrayBufferView types (TypedArrays, DataView)
@@ -30,7 +30,7 @@ function toArrayBuffer(data: BufferSource): ArrayBuffer {
     return ab;
 }
 
-async function getSubtle(): Promise<SubtleCrypto> {
+export async function getSubtle(): Promise<SubtleCrypto> {
     const subtle = globalThis?.crypto?.subtle as SubtleCrypto | undefined;
     if (!subtle) throw new Error("WebCrypto SubtleCrypto is not available in this runtime.");
     return subtle;
