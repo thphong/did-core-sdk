@@ -30,6 +30,64 @@ export function toArrayBuffer(data: BufferSource): ArrayBuffer {
     return ab;
 }
 
+export async function jwkToArrayBuffer(jwk: JsonWebKey): Promise<ArrayBuffer> {
+
+    const subtle = await getSubtle();
+    let alg: AlgorithmIdentifier;
+
+    if (jwk.kty === "OKP") {
+        alg = { name: "Ed25519" }; // WebCrypto in modern browsers supports Ed25519
+    } else {
+        throw new Error(`Unsupported kty: ${jwk.kty}`);
+    }
+
+    let usages: KeyUsage[] = [];
+    if (jwk.key_ops) {
+        usages = [...jwk.key_ops] as KeyUsage[]
+    }
+
+
+    // Import JWK into CryptoKey
+    const key = await subtle.importKey(
+        "jwk",
+        jwk,
+        alg,
+        true,    // extractable
+        usages
+    );
+
+    // Export as raw key material
+    if (key.type === "secret") {
+        // Symmetric key → raw bytes
+        return await crypto.subtle.exportKey("raw", key);
+    }
+
+    if (key.type === "public") {
+        // Public key → SPKI (Subject Public Key Info)
+        return await crypto.subtle.exportKey("spki", key);
+    }
+
+    if (key.type === "private") {
+        // Private key → PKCS8
+        return await crypto.subtle.exportKey("pkcs8", key);
+    }
+
+    throw new Error(`Unsupported key type: ${key.type}`);
+}
+
+export async function arrayBufferToJwk(
+    buf: ArrayBuffer,
+    format: "raw" | "spki" | "pkcs8",
+    algorithm: AlgorithmIdentifier,
+    usages: KeyUsage[] = []
+): Promise<JsonWebKey> {
+    const subtle = await getSubtle();
+
+    // must be extractable=true to re-export as JWK
+    const key = await subtle.importKey(format, buf, algorithm, true, usages);
+    return await subtle.exportKey("jwk", key);
+}
+
 export async function getSubtle(): Promise<SubtleCrypto> {
     const subtle = globalThis?.crypto?.subtle as SubtleCrypto | undefined;
     if (!subtle) throw new Error("WebCrypto SubtleCrypto is not available in this runtime.");
