@@ -79,10 +79,13 @@ export const didWeb: DidMethod = {
         if (hit) return hit;
 
         let res: Response;
+        let url = '';
 
-        let url = didWebToUrl(did, { protocol: "https" });
-        res = await fetchWithTimeout(fetchFn, url, timeoutMs);
-        if (!res.ok) {
+        try {
+            url = didWebToUrl(did, { protocol: "https" });
+            res = await fetchWithTimeout(fetchFn, url, timeoutMs);
+        }
+        catch {
             url = didWebToUrl(did, { protocol: "http" });
             res = await fetchWithTimeout(fetchFn, url, timeoutMs);
         }
