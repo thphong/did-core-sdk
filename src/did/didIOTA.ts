@@ -24,15 +24,13 @@ function isIotaDid(did: string): boolean {
  */
 export const didIOTA: DidMethod = {
     method: "iota",
-    async resolve(did: string, options = {}): Promise<DidDocument> {
+    async resolve(did: string): Promise<DidDocument> {
         if (!isIotaDid(did)) throw new Error("Not a did:iota DID");
 
         const hit = didCache.get(did);
         if (hit) return hit;
 
-        const {
-            cacheTtlMs = 5 * 60 * 1000,
-        } = options;
+        const cacheTtlMs = 5 * 60 * 1000;
         const doc: any = await resolveIOTADocument(did)
 
         if (!doc || typeof doc !== "object" || typeof (doc as any).id !== "string") {

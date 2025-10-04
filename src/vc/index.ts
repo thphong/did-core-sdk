@@ -151,14 +151,14 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
 /*
 const res = await verifyVC(vc, {protocol: 'http'})
 */
-export async function verifyVC(vc: VC, opts?: any): Promise<boolean> {
+export async function verifyVC(vc: VC): Promise<boolean> {
     try {
         if (!vc || !vc.proof) return false;
 
         const { proof } = vc;
 
         // Resolve issuer DID Document
-        const didDoc = await resolveDid(vc.issuer, opts);
+        const didDoc = await resolveDid(vc.issuer);
         if (!didDoc) return false;
 
         // Locate verification method
@@ -202,7 +202,7 @@ export async function verifyVC(vc: VC, opts?: any): Promise<boolean> {
         //Check parent VC if any
         const parentVC = vc.credentialSubject.parentVC;
         if (parentVC) {
-            const verParent = await verifyVC(parentVC, opts);
+            const verParent = await verifyVC(parentVC);
             if (!verParent) return false;
             if (parentVC.subject != vc.issuer) return false;
 

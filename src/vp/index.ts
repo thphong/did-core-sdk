@@ -1,6 +1,6 @@
 import { sign, verify, type KeyAlgorithm, arrBuftobase64u, b64uToArrBuf, algFromProofType, canonicalize } from "../crypto/index";
 import { resolveDid } from "../did/index";
-import { verifyVC } from "../vc/index";
+import { type VC, verifyVC } from "../vc/index";
 
 export interface VP {
     context: string[];
@@ -66,45 +66,67 @@ const res = await verifyVP(vp, 'did:web:localhost:5173:did:phong', 'did:web:loca
 const nonce = '3265573931';
 const res = await verifyVP(vp, 'did:web:localhost:5173:did:momo', 'did:web:localhost:5173:did:phong', nonce, 'did:web:localhost:5173:did:bank', {protocol: 'http'})
 */
-export async function verifyVP(vp: VP, holderDid: string, issuerDid: string, nonce: string, parentIssuerDid?: string, opts?: any): Promise<boolean> {
-    try {
-        if (!vp?.proof?.jws) return false;
-        const alg = algFromProofType(vp.proof.type);
-        const didDoc = await resolveDid(vp.holder, opts);
-        if (!didDoc) return false;
+export async function verifyVP(vp: VP, nonce: string): Promise<{ holder: string, issuer: string, parentIssuer: string, credentialSubjects: VC[] }> {
+    const holderDid = vp.holder;
+    if (!vp.verifiableCredential?.length) {
+        throw new Error('There is no verifiable credential in presentation');
+    }
+    const firstVc = vp.verifiableCredential[0];
+    const issuerDid = firstVc.issuer;
+    const parentIssuerDid = firstVc.credentialSubject.parentVC?.issuer || '';
+    const credentialSubjects = []
 
-        const publicKeyJwk = didDoc.verificationMethod?.[0]?.publicKeyJwk;
-        if (!publicKeyJwk) return false;
+    if (!vp?.proof?.jws) {
+        throw new Error('There is no proof in presentation');
+    }
+    const alg = algFromProofType(vp.proof.type);
+    const didDoc = await resolveDid(vp.holder);
+    if (!didDoc) {
+        throw new Error("Can't resolve holder did");
+    }
 
-        // Rebuild the EXACT payload that was signed
-        const payload: VP = {
-            context: vp.context,
-            type: vp.type,
-            verifiableCredential: vp.verifiableCredential,
-            holder: holderDid,
-            challenge: nonce ?? "",
-        };
-        const data = new TextEncoder().encode(canonicalize(payload)).buffer; // Uint8Array
+    const publicKeyJwk = didDoc.verificationMethod?.[0]?.publicKeyJwk;
+    if (!publicKeyJwk) {
+        throw new Error("Can't resolve holder did public key");
+    }
 
-        const sig = b64uToArrBuf(vp.proof.jws); // ArrayBuffer
+    // Rebuild the EXACT payload that was signed
+    const payload: VP = {
+        context: vp.context,
+        type: vp.type,
+        verifiableCredential: vp.verifiableCredential,
+        holder: holderDid,
+        challenge: nonce ?? "",
+    };
+    const data = new TextEncoder().encode(canonicalize(payload)).buffer; // Uint8Array
 
-        const ok = await verify(data, sig, publicKeyJwk, alg);
-        if (!ok) return false;
+    const sig = b64uToArrBuf(vp.proof.jws); // ArrayBuffer
 
-        if (!vp.verifiableCredential?.length) return false;
+    const ok = await verify(data, sig, publicKeyJwk, alg);
+    if (!ok) {
+        throw new Error("Proof is invalid");
+    }
 
-        for (const vc of vp.verifiableCredential) {
-            const okVC = await verifyVC(vc, opts);
-            if (!okVC) return false;
-            if (vc.subject != holderDid) return false;
-            if (vc.issuer != issuerDid) return false;
-            const parentVC = vc.credentialSubject.parentVC;
-            if (parentVC) {
-                if (parentVC.issuer != parentIssuerDid) return false;
+    for (const vc of vp.verifiableCredential) {
+        const okVC = await verifyVC(vc);
+        if (!okVC) {
+            throw new Error("Credential is not valid");
+        }
+        if (vc.subject != holderDid) {
+            throw new Error("There are many holders in one presentation");
+        }
+        if (vc.issuer != issuerDid) {
+            throw new Error("There are many issuers in one presentation");
+        }
+        const parentVC = vc.credentialSubject.parentVC;
+        if (parentVC) {
+            if (parentVC.issuer != parentIssuerDid) {
+                throw new Error("There are many parent issuers in one presentation");
             }
         }
-        return true;
-    } catch {
-        return false;
+        credentialSubjects.push(vc.credentialSubject);
     }
+    return {
+        holder: holderDid, issuer: issuerDid, parentIssuer: parentIssuerDid, credentialSubjects
+    };
 }

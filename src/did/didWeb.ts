@@ -6,17 +6,6 @@ import { DidCache } from "./didCache";
 
 const didCache = new DidCache();
 
-export interface DidWebResolveOptions {
-    /** Protocol to use when building the URL (default: https) */
-    protocol?: "https" | "http";
-    /** Override fetch implementation (e.g., node-fetch, RN polyfill) */
-    fetchFn?: typeof fetch;
-    /** Request timeout in ms (default: 8000) */
-    timeoutMs?: number;
-    /** TTL for cache in ms (default: 5 minutes) */
-    cacheTtlMs?: number;
-}
-
 /**
  * Convert a did:web to its did.json URL.
  *
@@ -26,7 +15,7 @@ export interface DidWebResolveOptions {
  * - Port is percent-encoded: did:web:example.com%3A3000 -> https://example.com:3000/.well-known/did.json
  * - Path segments are separated by ":" and may be percent-encoded.
  */
-function didWebToUrl(did: string, opts?: Pick<DidWebResolveOptions, "protocol">): string {
+function didWebToUrl(did: string, opts?: { protocol: string }): string {
     if (!did.startsWith("did:web:")) throw new Error("Not a did:web DID");
     const encoded = did.slice("did:web:".length);
     if (!encoded) throw new Error("Invalid did:web (empty identifier)");
@@ -73,14 +62,11 @@ async function fetchWithTimeout(
  */
 export const didWeb: DidMethod = {
     method: "web",
-    async resolve(did: string, options: DidWebResolveOptions = {}): Promise<DidDocument> {
+    async resolve(did: string): Promise<DidDocument> {
 
-        const {
-            protocol = "https",
-            fetchFn = (globalThis as any).fetch as typeof fetch | undefined,
-            timeoutMs = 8000,
-            cacheTtlMs = 5 * 60 * 1000,
-        } = options;
+        const fetchFn = (globalThis as any).fetch as typeof fetch | undefined;
+        const timeoutMs = 8000;
+        const cacheTtlMs = 5 * 60 * 1000;
 
         if (!fetchFn) {
             throw new Error(
@@ -92,9 +78,14 @@ export const didWeb: DidMethod = {
         const hit = didCache.get(did);
         if (hit) return hit;
 
-        const url = didWebToUrl(did, { protocol });
+        let res: Response;
 
-        const res = await fetchWithTimeout(fetchFn, url, timeoutMs);
+        let url = didWebToUrl(did, { protocol: "https" });
+        res = await fetchWithTimeout(fetchFn, url, timeoutMs);
+        if (!res.ok) {
+            url = didWebToUrl(did, { protocol: "http" });
+            res = await fetchWithTimeout(fetchFn, url, timeoutMs);
+        }
         if (!res.ok) {
             throw new Error(`did:web resolve failed (${res.status}) for ${url}`);
         }

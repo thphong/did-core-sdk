@@ -27,5 +27,5 @@ export interface DidDocument {
 export interface DidMethod {
     method: string; // "key", "web", ...
     create(publicKeyJwk: JsonWebKey, did?: string): Promise<{ did: string; doc: DidDocument }>;
-    resolve(did: string, opts?: any): Promise<DidDocument>;
+    resolve(did: string): Promise<DidDocument>;
 }
