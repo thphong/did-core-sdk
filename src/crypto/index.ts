@@ -94,6 +94,16 @@ export async function getSubtle(): Promise<SubtleCrypto> {
     return subtle;
 }
 
+export function stringToArrayBuffer(s: string): ArrayBuffer {
+    const bytes = new TextEncoder().encode(s);
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
+export function arrayBufferToString(
+    ab: ArrayBuffer
+): string {
+    return new TextDecoder().decode(new Uint8Array(ab));
+}
 
 //Sample call: await createKeyPair();
 export async function createKeyPair(_alg: KeyAlgorithm = "Ed25519"): Promise<KeyPair> {

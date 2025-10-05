@@ -1,15 +1,7 @@
 // src/did/didIOTA.ts
-// Minimal did:iota resolver with cache, timeout, and configurable resolver base URL.
-// NOTE: did:iota DIDs are anchored on the Tangle. To resolve, you typically call
-// an HTTP "resolver" service. This module lets you inject that base URL + fetch.
-//
-// Examples of resolver base URLs (you must provide one appropriate for your network):
-//   - Mainnet resolver:        "https://<your-resolver>/api/v1"
-//   - Devnet/Shimmer resolver: "https://<your-resolver>/api/v1"
-
 import type { DidDocument, DidMethod } from "./types";
 import { DidCache } from "./didCache";
-import { createIOTADocument, resolveIOTADocument, generateMnemonic } from "../iota/iota-utils";
+import { createIOTADocument, resolveIOTADocument } from "../iota/iota-utils";
 
 const didCache = new DidCache();
 
@@ -46,14 +38,16 @@ export const didIOTA: DidMethod = {
      * This helper does NOT create or publish a DID; it just builds a doc structure
      * you might sign or later publish via an IOTA Identity flow.
      */
-    async create(publicKeyJwk: JsonWebKey): Promise<{ did: string; doc: DidDocument }> {
+    async create(publicKeyJwk: JsonWebKey, opts: { mnemonic: string }): Promise<{ did: string; doc: DidDocument }> {
         if (!publicKeyJwk || publicKeyJwk.kty !== "OKP" || publicKeyJwk.crv !== "Ed25519" || !publicKeyJwk.x) {
             throw new Error("Expected Ed25519 public JWK with 'x'");
         }
 
-        const mnemonic = await generateMnemonic();
+        if (!opts.mnemonic) {
+            throw new Error("Expected mnemonic");
+        }
 
-        const doc: any = await createIOTADocument(mnemonic, publicKeyJwk);
+        const doc: any = await createIOTADocument(opts.mnemonic, publicKeyJwk);
         return {
             did: doc.did, doc
         }

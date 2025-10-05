@@ -1,32 +1,10 @@
-import type { IotaDocument as TIotaDocument } from "@iota/identity-wasm/web/index.js";
+import { IotaDocument, IotaIdentityClient, VerificationMethod, MethodScope, IotaDID, Jwk } from "@iota/identity-wasm/web";
+import { Utils, Client, SecretManager } from "@iota/sdk-wasm/web";
 
 const API_ENDPOINT = "https://api.testnet.shimmer.network";
 const FAUCET_ENDPOINT = "https://faucet.testnet.shimmer.network/api/enqueue";
 
-async function loadIdentity() {
-    return await import("@iota/identity-wasm/web/index.js");
-}
-
-async function loadSdk() {
-    return await import("@iota/sdk-wasm/web/lib/index.js");
-}
-
-let isLoadedWasm = false;
-async function loadWasm() {
-    if (!isLoadedWasm) {
-        console.log('start init');
-        const identity = await loadIdentity();
-        await identity.init();
-        isLoadedWasm = true;
-        console.log('end init');
-    }
-}
-
 export async function generateMnemonic(): Promise<string> {
-    await loadWasm();
-
-    const sdk = await loadSdk();
-    const { Utils } = sdk as any;
     return Utils.generateMnemonic();
 }
 
@@ -34,23 +12,12 @@ export async function generateMnemonic(): Promise<string> {
 export async function createIOTADocument(
     mnemonic: string,
     publicKeyJwk: JsonWebKey
-): Promise<TIotaDocument> {
-    await loadWasm();
-
-    const identity = await loadIdentity();
-    const sdk = await loadSdk();
-
-    const { IotaDocument, IotaIdentityClient, VerificationMethod, MethodScope } =
-        identity as any;
-    const { Client, SecretManager, Utils } = sdk as any;
+): Promise<IotaDocument> {
 
     // 1) Tạo client
     const client = new Client({ primaryNode: API_ENDPOINT, localPow: true });
     const didClient = new IotaIdentityClient(client);
     const networkHrp: string = await didClient.getNetworkHrp();
-
-    // 2) SecretManager từ mnemonic (để publish alias output)
-    const secretManager = new SecretManager({ mnemonic });
 
     const addressBech32 = await deriveBech32Address(mnemonic);
 
@@ -66,7 +33,7 @@ export async function createIOTADocument(
     // 5) Thêm publicKeyJwk vào document (vì bạn quản lý private key riêng)
     const method = VerificationMethod.newFromJwk(
         document.id(),
-        publicKeyJwk,
+        Jwk.fromJSON(publicKeyJwk),
         "#mykey"
     );
     document.insertMethod(method, MethodScope.AssertionMethod());
@@ -75,17 +42,12 @@ export async function createIOTADocument(
     const aliasOutput = await didClient.newDidOutput(address, document);
 
     // 7) Publish DID Document
-    const published = await didClient.publishDidOutput(secretManager, aliasOutput);
+    const published = await didClient.publishDidOutput({ mnemonic }, aliasOutput);
 
     return published;
 }
 
-export async function resolveIOTADocument(iotadid: string): Promise<TIotaDocument> {
-    const identity = await loadIdentity();
-    const sdk = await loadSdk();
-
-    const { IotaIdentityClient } = identity as any;
-    const { Client } = sdk as any;
+export async function resolveIOTADocument(iotadid: string): Promise<IotaDocument> {
 
     // 1. Tạo client kết nối IOTA node
     const client = new Client({ primaryNode: API_ENDPOINT, localPow: true });
@@ -94,19 +56,12 @@ export async function resolveIOTADocument(iotadid: string): Promise<TIotaDocumen
     const didClient = new IotaIdentityClient(client);
 
     // 3. Resolve DID -> DidDocument
-    const resolvedDoc = await didClient.resolveDid(iotadid);
+    const resolvedDoc = await didClient.resolveDid(IotaDID.parse(iotadid));
 
     return resolvedDoc;
 }
 
 async function deriveBech32Address(mnemonic: string): Promise<string> {
-    await loadWasm();
-
-    const sdk = await loadSdk();
-    const identity = await loadIdentity();
-
-    const { Client, SecretManager } = sdk as any;
-    const { IotaIdentityClient } = identity as any;
 
     const client = new Client({ primaryNode: API_ENDPOINT, localPow: true });
     const didClient = new IotaIdentityClient(client);
@@ -124,8 +79,6 @@ async function deriveBech32Address(mnemonic: string): Promise<string> {
 
 /** Request funds from the faucet API, if needed, and wait for them to show in the wallet. */
 async function ensureAddressHasFunds(client: any, addressBech32: string) {
-
-    await loadWasm();
 
     let balance = await getAddressBalance(client, addressBech32);
     if (balance > BigInt(0)) {
@@ -148,8 +101,6 @@ async function ensureAddressHasFunds(client: any, addressBech32: string) {
 /** Returns the balance of the given Bech32-encoded address. */
 async function getAddressBalance(client: any, addressBech32: string): Promise<bigint> {
 
-    await loadWasm();
-
     const outputIds = await client.basicOutputIds([
         { address: addressBech32 },
         { hasExpiration: false },
@@ -168,8 +119,6 @@ async function getAddressBalance(client: any, addressBech32: string): Promise<bi
 
 /** Request tokens from the faucet API. */
 async function requestFundsFromFaucet(addressBech32: string) {
-
-    await loadWasm();
 
     const requestObj = JSON.stringify({ address: addressBech32 });
     let errorMessage, data;
@@ -200,6 +149,7 @@ async function requestFundsFromFaucet(addressBech32: string) {
     }
 }
 
+//Load wasm in client
 // (async () => {
 //     await loadWasm();
 // })();

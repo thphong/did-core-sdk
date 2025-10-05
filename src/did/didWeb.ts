@@ -106,16 +106,21 @@ export const didWeb: DidMethod = {
         didCache.set(did, doc, cacheTtlMs);
         return doc;
     },
-    async create(publicKeyJwk: JsonWebKey, did: string): Promise<{ did: string; doc: DidDocument }> {
-        const vmId = `${did}#keys-1`;
+    async create(publicKeyJwk: JsonWebKey, opts: { didWeb: string }): Promise<{ did: string; doc: DidDocument }> {
+
+        if (!opts.didWeb) {
+            throw new Error("Expected your given did");
+        }
+
+        const vmId = `${opts.didWeb}#keys-1`;
         const doc = {
             "@context": ["https://www.w3.org/ns/did/v1"],
-            id: did,
+            id: opts.didWeb,
             verificationMethod: [
                 {
                     id: vmId,
                     type: "Ed25519VerificationKey2020",
-                    controller: did,
+                    controller: opts.didWeb,
                     publicKeyJwk: publicKeyJwk
                 }
             ],
@@ -125,7 +130,7 @@ export const didWeb: DidMethod = {
             capabilityDelegation: [vmId]
         }
 
-        return { did, doc };
+        return { did: opts.didWeb, doc };
     }
 };
 
