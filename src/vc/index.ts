@@ -152,74 +152,82 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
 const res = await verifyVC(vc, {protocol: 'http'})
 */
 export async function verifyVC(vc: VC): Promise<boolean> {
-    try {
-        if (!vc || !vc.proof) return false;
+    if (!vc || !vc.proof) {
+        throw new Error("Verify Credential: Proof is empty");
+    }
 
-        const { proof } = vc;
+    const { proof } = vc;
 
-        // Resolve issuer DID Document
-        const didDoc = await resolveDid(vc.issuer);
-        if (!didDoc) return false;
+    // Resolve issuer DID Document
+    const didDoc = await resolveDid(vc.issuer);
+    if (!didDoc) {
+        throw new Error("Verify Credential: Can't resolve issuer did");
+    }
 
-        // Locate verification method
-        const vm = didDoc.verificationMethod?.find(
-            (m: any) => m.id === proof.verificationMethod
-        );
+    // Locate verification method
+    const vm = didDoc.verificationMethod?.find(
+        (m: any) => m.id === proof.verificationMethod
+    );
 
-        if (!vm || !vm.publicKeyJwk) return false;
+    if (!vm || !vm.publicKeyJwk) {
+        throw new Error("Verify Credential: Can't find public key from verification method");
+    }
 
-        const publicKeyJwk = vm.publicKeyJwk;
+    const publicKeyJwk = vm.publicKeyJwk;
 
-        // Rebuild payload (exclude proof)
-        const payload: VC = {
-            context: vc.context,
-            type: vc.type,
-            issuer: vc.issuer,
-            issuanceDate: vc.issuanceDate,
-            subject: vc.subject,
-            credentialSubject: vc.credentialSubject,
-            ...(vc.expirationDate && { expirationDate: vc.expirationDate })
-        };
-        const data = new TextEncoder().encode(canonicalize(payload)).buffer;
+    // Rebuild payload (exclude proof)
+    const payload: VC = {
+        context: vc.context,
+        type: vc.type,
+        issuer: vc.issuer,
+        issuanceDate: vc.issuanceDate,
+        subject: vc.subject,
+        credentialSubject: vc.credentialSubject,
+        ...(vc.expirationDate && { expirationDate: vc.expirationDate })
+    };
+    const data = new TextEncoder().encode(canonicalize(payload)).buffer;
 
-        // 4. Extract signature
-        const sig = b64uToArrBuf(proof.jws);
+    // 4. Extract signature
+    const sig = b64uToArrBuf(proof.jws);
 
-        // 5. Verify signature
-        const alg = algFromProofType(proof.type);
-        const valid = await verify(data, sig, publicKeyJwk, alg);
-        if (!valid) return false;
+    // 5. Verify signature
+    const alg = algFromProofType(proof.type);
+    const valid = await verify(data, sig, publicKeyJwk, alg);
+    if (!valid) {
+        throw new Error("Verify Credential: Proof is invalid");
+    }
 
-        // 6. Metadata checks
-        const now = Date.now();
-        if (vc.expirationDate && new Date(vc.expirationDate).getTime() < now) {
-            return false; // expired
+    // 6. Metadata checks
+    const now = Date.now();
+    if (vc.expirationDate && new Date(vc.expirationDate).getTime() < now) {
+        throw new Error("Verify Credential: Credential is expired");
+    }
+    if (new Date(vc.issuanceDate).getTime() > now) {
+        throw new Error("Verify Credential: Credential is valid in future");
+    }
+
+    //Check parent VC if any
+    const parentVC = vc.credentialSubject.parentVC;
+    if (parentVC) {
+        const verParent = await verifyVC(parentVC);
+        if (!verParent) {
+            throw new Error("Verify Credential: Parent Credential is invalid");
         }
-        if (new Date(vc.issuanceDate).getTime() > now) {
-            return false; // issued in the future
+
+        if (parentVC.subject != vc.issuer) {
+            throw new Error("Verify Credential: Parent Credential is not issued for holder");
         }
 
-        //Check parent VC if any
-        const parentVC = vc.credentialSubject.parentVC;
-        if (parentVC) {
-            const verParent = await verifyVC(parentVC);
-            if (!verParent) return false;
-            if (parentVC.subject != vc.issuer) return false;
-
-            for (const key of Object.keys(vc.credentialSubject)) {
-                if (key != "id" && key != "parentVC") {
-                    if (!checkSubObject(parentVC.credentialSubject[key], vc.credentialSubject[key])) {
-                        throw new Error("Parent VC's credentialSubject must contains all info for claims");
-                    }
+        for (const key of Object.keys(vc.credentialSubject)) {
+            if (key != "id" && key != "parentVC") {
+                if (!checkSubObject(parentVC.credentialSubject[key], vc.credentialSubject[key])) {
+                    throw new Error("Parent VC's credentialSubject must contains all info for claims");
                 }
             }
         }
-
-        return true;
-    } catch (err) {
-        console.error("verifyVC error:", err);
-        return false;
     }
+
+    return true;
 }
 
 export async function revokeVC(vc: VC): Promise<void> {

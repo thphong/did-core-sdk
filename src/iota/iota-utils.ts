@@ -95,7 +95,7 @@ async function createDocumentForNetwork(publicKeyJwk: JsonWebKey, network: strin
     // Create a new DID document with a placeholder DID.
     const document = new IotaDocument(network);
 
-    const fragment = "#key-1";
+    const fragment = "#keys-1";
     const method = VerificationMethod.newFromJwk(document.id(), Jwk.fromJSON(publicKeyJwk), fragment);
     document.insertMethod(method, MethodScope.VerificationMethod());
 
