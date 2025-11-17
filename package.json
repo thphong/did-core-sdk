@@ -49,6 +49,8 @@
   "dependencies": {
     "@iota/identity-wasm": "^1.6.0-beta.10",
     "@iota/iota-sdk": "^1.6.1",
-    "@iota/sdk-wasm": "^2.0.0-beta.1"
+    "@iota/sdk-wasm": "^2.0.0-beta.1",
+    "@types/libsodium-wrappers": "^0.7.14",
+    "libsodium-wrappers": "^0.7.15"
   }
 }

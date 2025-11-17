@@ -1,4 +1,7 @@
 import { NotImplementedError } from "../utils/errors";
+import sodium from "libsodium-wrappers";
+
+type JsonObject = Record<string, any>;
 
 export type KeyAlgorithm = "Ed25519" | "ES256";
 
@@ -28,6 +31,25 @@ export function toArrayBuffer(data: BufferSource): ArrayBuffer {
     const ab = new ArrayBuffer(u8.byteLength);
     new Uint8Array(ab).set(u8);
     return ab;
+}
+
+function base64UrlToUint8(b64: string): Uint8Array {
+    // pad string
+    b64 = b64.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4;
+    if (pad) b64 += "=".repeat(4 - pad);
+    const raw = atob(b64);
+    const arr = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+    return arr;
+}
+
+// --------- CONVERT JWK → RAW (Ed25519) ----------
+function jwkToEd25519Keys(jwkPub: JsonWebKey, jwkPriv?: JsonWebKey) {
+    const pk = base64UrlToUint8(jwkPub.x!);
+    const sk = jwkPriv?.d ? base64UrlToUint8(jwkPriv.d) : undefined;
+
+    return { edPk: pk, edSk: sk };
 }
 
 export async function jwkToArrayBuffer(jwk: JsonWebKey): Promise<ArrayBuffer> {
@@ -334,4 +356,50 @@ export async function decryptAesGcm(
     const subtle = await getSubtle();
     const pt = await subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
     return pt;
+}
+
+// ========== ENCRYPT ==========
+export async function encrypt(
+    publicKeyJwk: JsonWebKey,
+    data: JsonObject,
+): Promise<ArrayBuffer> {
+    await sodium.ready;
+
+    // lấy raw ed25519 key
+    const { edPk } = jwkToEd25519Keys(publicKeyJwk);
+
+    // convert to curve25519
+    const curvePk = sodium.crypto_sign_ed25519_pk_to_curve25519(edPk);
+
+    const plaintext = new TextEncoder().encode(JSON.stringify(data));
+
+    const ciphertext = sodium.crypto_box_seal(plaintext, curvePk);
+
+    return ciphertext.buffer as ArrayBuffer;
+}
+
+// ========== DECRYPT ==========
+export async function decrypt(
+    publicKeyJwk: JsonWebKey,
+    privateKeyJwk: JsonWebKey,
+    encrypted: ArrayBuffer,
+): Promise<JsonObject> {
+    await sodium.ready;
+
+    const { edPk, edSk } = jwkToEd25519Keys(publicKeyJwk, privateKeyJwk);
+
+    if (!edSk) throw new Error("Private JWK missing 'd' field");
+
+    const curvePk = sodium.crypto_sign_ed25519_pk_to_curve25519(edPk);
+    const curveSk = sodium.crypto_sign_ed25519_sk_to_curve25519(edSk);
+
+    const plaintext = sodium.crypto_box_seal_open(
+        new Uint8Array(encrypted),
+        curvePk,
+        curveSk
+    );
+
+    if (!plaintext) throw new Error("Decryption failed");
+
+    return JSON.parse(new TextDecoder().decode(plaintext));
 }
