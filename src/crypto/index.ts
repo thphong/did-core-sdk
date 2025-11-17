@@ -45,9 +45,9 @@ function base64UrlToUint8(b64: string): Uint8Array {
 }
 
 // --------- CONVERT JWK → RAW (Ed25519) ----------
-function jwkToEd25519Keys(jwkPub: JsonWebKey, jwkPriv?: JsonWebKey) {
-    const pk = base64UrlToUint8(jwkPub.x!);
-    const sk = jwkPriv?.d ? base64UrlToUint8(jwkPriv.d) : undefined;
+function jwkToEd25519Keys(pubString: string, privSTtring?: string) {
+    const pk = base64UrlToUint8(pubString);
+    const sk = privSTtring ? base64UrlToUint8(privSTtring) : undefined;
 
     return { edPk: pk, edSk: sk };
 }
@@ -360,13 +360,13 @@ export async function decryptAesGcm(
 
 // ========== ENCRYPT ==========
 export async function encrypt(
-    publicKeyJwk: JsonWebKey,
+    publicKeyString: string,
     data: JsonObject,
 ): Promise<ArrayBuffer> {
     await sodium.ready;
 
     // lấy raw ed25519 key
-    const { edPk } = jwkToEd25519Keys(publicKeyJwk);
+    const { edPk } = jwkToEd25519Keys(publicKeyString);
 
     // convert to curve25519
     const curvePk = sodium.crypto_sign_ed25519_pk_to_curve25519(edPk);
@@ -380,13 +380,13 @@ export async function encrypt(
 
 // ========== DECRYPT ==========
 export async function decrypt(
-    publicKeyJwk: JsonWebKey,
-    privateKeyJwk: JsonWebKey,
+    publicKeyString: string,
+    privateKeyString: string,
     encrypted: ArrayBuffer,
 ): Promise<JsonObject> {
     await sodium.ready;
 
-    const { edPk, edSk } = jwkToEd25519Keys(publicKeyJwk, privateKeyJwk);
+    const { edPk, edSk } = jwkToEd25519Keys(publicKeyString, privateKeyString);
 
     if (!edSk) throw new Error("Private JWK missing 'd' field");
 
