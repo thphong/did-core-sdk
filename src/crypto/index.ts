@@ -45,11 +45,20 @@ function base64UrlToUint8(b64: string): Uint8Array {
 }
 
 // --------- CONVERT JWK → RAW (Ed25519) ----------
-function jwkToEd25519Keys(pubString: string, privSTtring?: string) {
-    const pk = base64UrlToUint8(pubString);
-    const sk = privSTtring ? base64UrlToUint8(privSTtring) : undefined;
+function jwkToEd25519Keys(pubString: string, privString?: string) {
+    const edPk = base64UrlToUint8(pubString);   // 32 bytes
 
-    return { edPk: pk, edSk: sk };
+    let edSk: Uint8Array | undefined;
+    if (privString) {
+        const seed = base64UrlToUint8(privString); // 32 bytes (JWK d)
+
+        // Build 64-byte Ed25519 secret key: seed || publicKey
+        edSk = new Uint8Array(64);
+        edSk.set(seed, 0);       // first 32 bytes = seed
+        edSk.set(edPk, 32);      // last 32 bytes = public key
+    }
+
+    return { edPk, edSk };
 }
 
 export async function jwkToArrayBuffer(jwk: JsonWebKey): Promise<ArrayBuffer> {

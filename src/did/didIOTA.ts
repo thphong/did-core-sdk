@@ -2,7 +2,8 @@
 import type { DidDocument, DidMethod } from "./types";
 import { DidCache } from "./didCache";
 import { createIOTADocument, resolveIOTADocument } from "../iota/iota-utils";
-import { IotaDocument } from "@iota/identity-wasm/web";
+//import { IotaDocument } from "@iota/identity-wasm/web";
+import { IotaDocument } from "@iota/identity-wasm/node/index.js";
 
 const didCache = new DidCache();
 

@@ -4,7 +4,8 @@ import {
     IdentityClient, MethodScope, VerificationMethod, Jwk,
     IdentityClientReadOnly, StorageSigner,
     JwkMemStore, KeyIdMemStore, JwsAlgorithm
-} from "@iota/identity-wasm/web";
+} from "@iota/identity-wasm/node/index.js";
+//} from "@iota/identity-wasm/web";
 import { getFaucetHost, requestIotaFromFaucetV0 } from "@iota/iota-sdk/faucet";
 import { IotaClient } from "@iota/iota-sdk/client";
 const NETWORK_NAME_FAUCET = 'testnet';
