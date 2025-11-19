@@ -80,7 +80,7 @@ export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Pro
 
 function checkSubObject(parentObj: any, childObj: any): boolean {
     if (typeof parentObj !== "object" || typeof childObj !== "object" || parentObj === null || childObj === null) {
-        return false;
+        return parentObj === childObj;
     }
 
     for (const key of Object.keys(childObj)) {

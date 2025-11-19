@@ -44,6 +44,12 @@ function base64UrlToUint8(b64: string): Uint8Array {
     return arr;
 }
 
+function uint8ToBase64Url(arr: Uint8Array): string {
+    let b64 = Buffer.from(arr).toString("base64");
+    // Base64 → Base64URL
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 // --------- CONVERT JWK → RAW (Ed25519) ----------
 function jwkToEd25519Keys(pubString: string, privString?: string) {
     const edPk = base64UrlToUint8(pubString);   // 32 bytes
@@ -371,7 +377,7 @@ export async function decryptAesGcm(
 export async function encrypt(
     publicKeyString: string,
     data: JsonObject,
-): Promise<ArrayBuffer> {
+): Promise<string> {
     await sodium.ready;
 
     // lấy raw ed25519 key
@@ -384,16 +390,18 @@ export async function encrypt(
 
     const ciphertext = sodium.crypto_box_seal(plaintext, curvePk);
 
-    return ciphertext.buffer as ArrayBuffer;
+    return uint8ToBase64Url(ciphertext);
 }
 
 // ========== DECRYPT ==========
 export async function decrypt(
     publicKeyString: string,
     privateKeyString: string,
-    encrypted: ArrayBuffer,
+    encryptedStr: string,
 ): Promise<JsonObject> {
     await sodium.ready;
+
+    const encrypted = base64UrlToUint8(encryptedStr);
 
     const { edPk, edSk } = jwkToEd25519Keys(publicKeyString, privateKeyString);
 
