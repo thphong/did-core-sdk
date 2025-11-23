@@ -44,10 +44,21 @@ function base64UrlToUint8(b64: string): Uint8Array {
     return arr;
 }
 
-function uint8ToBase64Url(arr: Uint8Array): string {
-    let b64 = Buffer.from(arr).toString("base64");
-    // Base64 → Base64URL
-    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function uint8ToBase64Url(bytes: Uint8Array): string {
+    // Uint8Array -> binary string
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+
+    // binary -> base64
+    const base64 = btoa(binary);
+
+    // base64 -> base64url
+    return base64
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/g, "");
 }
 
 // --------- CONVERT JWK → RAW (Ed25519) ----------
