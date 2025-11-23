@@ -45,6 +45,13 @@ function base64UrlToUint8(b64: string): Uint8Array {
 }
 
 function uint8ToBase64Url(bytes: Uint8Array): string {
+    // Node có Buffer
+    if (typeof Buffer !== "undefined" && typeof window === "undefined") {
+        let b64 = Buffer.from(bytes).toString("base64");
+        // Base64 → Base64URL
+        return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }
+
     // Uint8Array -> binary string
     let binary = "";
     for (let i = 0; i < bytes.length; i++) {
