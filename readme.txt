@@ -9,5 +9,5 @@ npm run dev
 npm run build
 npm pack          # creates yourorg-sdk-core-0.1.0.tgz
 # in the consumer app:
-npm i src/did-core/did-core-sdk-1.0.0.tgz
+npm i src/did-core/did-core-sdk-1.0.1.tgz
 

@@ -148,10 +148,11 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
 
     return childVC;
 }
-/*
-const res = await verifyVC(vc, {protocol: 'http'})
-*/
-export async function verifyVC(vc: VC): Promise<boolean> {
+
+async function verifySingleVC(
+    vc: VC,
+    options: { withMetaChecks: boolean }
+): Promise<{ didSubject: string, publicKeyJwkIssuer: JsonWebKey }> {
     if (!vc || !vc.proof) {
         throw new Error("Verify Credential: Proof is empty");
     }
@@ -198,13 +199,39 @@ export async function verifyVC(vc: VC): Promise<boolean> {
     }
 
     // 6. Metadata checks
-    const now = Date.now();
-    if (vc.expirationDate && new Date(vc.expirationDate).getTime() < now) {
-        throw new Error("Verify Credential: Credential is expired");
+    if (options.withMetaChecks) {
+        const now = Date.now();
+        if (vc.expirationDate && new Date(vc.expirationDate).getTime() < now) {
+            throw new Error("Verify Credential: Credential is expired");
+        }
+        if (new Date(vc.issuanceDate).getTime() > now) {
+            throw new Error("Verify Credential: Credential is valid in future");
+        }
     }
-    if (new Date(vc.issuanceDate).getTime() > now) {
-        throw new Error("Verify Credential: Credential is valid in future");
+
+    return { didSubject: vc.subject, publicKeyJwkIssuer: publicKeyJwk };
+}
+
+function validateParentVC(parentVC: VC, vc: VC) {
+    if (parentVC.subject != vc.issuer) {
+        throw new Error("Verify Credential: Parent Credential is not issued for holder");
     }
+
+    for (const key of Object.keys(vc.credentialSubject)) {
+        if (key != "id" && key != "parentVC") {
+            if (!checkSubObject(parentVC.credentialSubject[key], vc.credentialSubject[key])) {
+                throw new Error("Parent VC's credentialSubject must contains all info for claims");
+            }
+        }
+    }
+}
+
+/*
+const res = await verifyVC(vc, {protocol: 'http'})
+*/
+export async function verifyVC(vc: VC): Promise<boolean> {
+
+    await verifySingleVC(vc, { withMetaChecks: true });
 
     //Check parent VC if any
     const parentVC = vc.credentialSubject.parentVC;
@@ -213,21 +240,33 @@ export async function verifyVC(vc: VC): Promise<boolean> {
         if (!verParent) {
             throw new Error("Verify Credential: Parent Credential is invalid");
         }
-
-        if (parentVC.subject != vc.issuer) {
-            throw new Error("Verify Credential: Parent Credential is not issued for holder");
-        }
-
-        for (const key of Object.keys(vc.credentialSubject)) {
-            if (key != "id" && key != "parentVC") {
-                if (!checkSubObject(parentVC.credentialSubject[key], vc.credentialSubject[key])) {
-                    throw new Error("Parent VC's credentialSubject must contains all info for claims");
-                }
-            }
-        }
+        validateParentVC(parentVC, vc);
     }
 
     return true;
+}
+
+export async function getPublickeyIssuerFromVC(vc: VC):
+    Promise<{ didSubject: string, publicKeyJwkIssuer: JsonWebKey | null, didOri: string, parentPublicKeyJwkIssuer: JsonWebKey | null }> {
+    // verify VC hiện tại nhưng KHÔNG check metadata (y như code cũ)
+    const { didSubject, publicKeyJwkIssuer } = await verifySingleVC(vc, { withMetaChecks: false });
+    let parentPublicKeyJwkIssuer: JsonWebKey | null = null;
+    let didOri = didSubject;
+
+    // Check parent VC nếu có (logic giữ nguyên, vẫn dùng getPublickeyIssuerFromVC đệ quy)
+    const parentVC = vc.credentialSubject.parentVC;
+    if (parentVC) {
+        const parentInfo = await getPublickeyIssuerFromVC(parentVC);
+        didOri = parentInfo.didSubject;
+        parentPublicKeyJwkIssuer = parentInfo.publicKeyJwkIssuer;
+        if (!parentPublicKeyJwkIssuer || !didOri) {
+            throw new Error("Verify Credential: Parent Credential is invalid");
+        }
+
+        validateParentVC(parentVC, vc);
+    }
+
+    return { didSubject, publicKeyJwkIssuer, didOri, parentPublicKeyJwkIssuer };
 }
 
 export async function revokeVC(vc: VC): Promise<void> {
