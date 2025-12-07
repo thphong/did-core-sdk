@@ -157,7 +157,15 @@ export function stringToArrayBuffer(s: string): ArrayBuffer {
 export function arrayBufferToString(
     ab: ArrayBuffer
 ): string {
-    return new TextDecoder().decode(new Uint8Array(ab)); 
+    return new TextDecoder().decode(new Uint8Array(ab));
+}
+
+export function jsonToArrayBuffer(jsonObj: any): ArrayBuffer {
+    // 1. canonicalize JSON
+    const canonicalStr = canonicalize(jsonObj);
+
+    // 2. convert string → ArrayBuffer
+    return stringToArrayBuffer(canonicalStr);
 }
 
 //Sample call: await createKeyPair();
@@ -188,6 +196,29 @@ export async function createKeyPair(_alg: KeyAlgorithm = "Ed25519"): Promise<Key
 
         default:
             throw new NotImplementedError(`Unsupported algorithm: ${alg}`);
+    }
+}
+
+export function convert2PublicJsonWebKey(x: string, alg: string = "Ed25519"): JsonWebKey {
+    return {
+        "key_ops": ["verify"],
+        "ext": true,
+        "crv": alg,
+        "x": x,
+        "kty": "OKP",
+        "alg": alg
+    }
+}
+
+export function convert2PrivateJsonWebKey(x: string, d: string, alg: string = "Ed25519"): JsonWebKey {
+    return {
+        "key_ops": ["sign"],
+        "ext": true,
+        "crv": alg,
+        "d": d,
+        "x": x,
+        "kty": "OKP",
+        "alg": alg
     }
 }
 
