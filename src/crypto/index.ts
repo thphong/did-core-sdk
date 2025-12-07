@@ -288,7 +288,7 @@ export async function verify(
     _data: ArrayBuffer,
     _sig: ArrayBuffer,
     _pub: JsonWebKey,
-    _alg: KeyAlgorithm
+    _alg: KeyAlgorithm = "Ed25519"
 ): Promise<boolean> {
 
     const alg = _alg ?? "Ed25519";
