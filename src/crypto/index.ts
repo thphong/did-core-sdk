@@ -157,7 +157,7 @@ export function stringToArrayBuffer(s: string): ArrayBuffer {
 export function arrayBufferToString(
     ab: ArrayBuffer
 ): string {
-    return new TextDecoder().decode(new Uint8Array(ab));
+    return new TextDecoder().decode(new Uint8Array(ab)); 
 }
 
 //Sample call: await createKeyPair();
