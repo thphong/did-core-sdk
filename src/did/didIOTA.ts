@@ -41,7 +41,7 @@ export const didIOTA: DidMethod = {
      * This helper does NOT create or publish a DID; it just builds a doc structure
      * you might sign or later publish via an IOTA Identity flow.
      */
-    async create(publicKeyJwk: JsonWebKey, opts: { privateKey: JsonWebKey }): Promise<{ did: string; doc: DidDocument }> {
+    async create(publicKeyJwk: JsonWebKey, opts: { privateKey: JsonWebKey, service?: any[] }): Promise<{ did: string; doc: DidDocument }> {
         if (!publicKeyJwk || publicKeyJwk.kty !== "OKP" || publicKeyJwk.crv !== "Ed25519" || !publicKeyJwk.x) {
             throw new Error("Expected Ed25519 public JWK with 'x'");
         }
@@ -50,7 +50,7 @@ export const didIOTA: DidMethod = {
             throw new Error("Expected privateKey");
         }
 
-        const iotaDoc: IotaDocument = await createIOTADocument(publicKeyJwk, opts.privateKey);
+        const iotaDoc: IotaDocument = await createIOTADocument(publicKeyJwk, opts.privateKey, opts.service);
         const did = iotaDoc.id().toString();
         const doc: any = iotaDoc.toJSON();
         return {
