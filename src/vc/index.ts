@@ -13,7 +13,25 @@ export type VC = {
     proof?: any;
     expirationDate?: string;          // optional expiry
     algorithm?: KeyAlgorithm;             // e.g. "Ed25519"
+    credentialStatus?: { id: string, type: string, revocationBitmapIndex: number };
+    revocationBitmapIndex?: number;
 };
+
+const REVOCATION_FRAGMENT = "#revocation";
+function revocationStatus(
+    issuerDid: string,
+    index: number,
+): { id: string, type: string, revocationBitmapIndex: number } {
+    const serviceDidUrl = `${issuerDid}${REVOCATION_FRAGMENT}`;
+
+    // Theo spec: id là DID URL, type là "RevocationBitmap2022",
+    // revocationBitmapIndex là string. :contentReference[oaicite:2]{index=2}
+    return {
+        id: serviceDidUrl.toString(),
+        type: "RevocationBitmap2022",
+        revocationBitmapIndex: index,
+    };
+}
 
 /*
 const now = new Date();
@@ -42,6 +60,7 @@ export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Pro
         expirationDate,
         credentialSubject,
         algorithm = "Ed25519",
+        revocationBitmapIndex
     } = params;
 
     //Build credential payload (W3C standard)
@@ -56,6 +75,7 @@ export async function createVC(params: VC, issuerPrivateKeyJwk: JsonWebKey): Pro
             ...credentialSubject,
         },
         ...(expirationDate && { expirationDate: expirationDate }),
+        ...(revocationBitmapIndex != undefined && revocationBitmapIndex >= 0 && { credentialStatus: revocationStatus(issuer, revocationBitmapIndex) }),
     };
 
     //Serialize VC to bytes for signing
@@ -104,7 +124,7 @@ const res = await createDelegatedVC(vc, 'did:web:localhost:5173:did:momo', {
         }, privateKeyJwk, newExpirationDate);
 */
 export async function createDelegatedVC(parentVC: VC, childSubject: string, claims: Record<string, any>,
-    delegatorPrivKey: JsonWebKey, expirationDate?: string): Promise<VC> {
+    delegatorPrivKey: JsonWebKey, expirationDate?: string, revocationBitmapIndex?: number): Promise<VC> {
     if (!parentVC) throw new Error("Parent VC is required");
     if (!parentVC.proof) {
         throw new Error("Parent VC must have a proof to allow delegation");
@@ -129,6 +149,7 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
             ...claims,
             parentVC: parentVC,
         },
+        ...(revocationBitmapIndex != undefined && revocationBitmapIndex >= 0 && { credentialStatus: revocationStatus(parentVC.subject, revocationBitmapIndex) }),
     };
 
     // Serialize và ký bằng private key của B

@@ -4,7 +4,8 @@ import {
     IdentityClient, MethodScope, VerificationMethod, Jwk,
     IdentityClientReadOnly, StorageSigner,
     JwkMemStore, KeyIdMemStore, JwsAlgorithm,
-    Service, IService
+    Service, IService, RevocationBitmap,
+    DIDUrl
     //} from "@iota/identity-wasm/node/index.js";
 } from "@iota/identity-wasm/web";
 import { getFaucetHost, requestIotaFromFaucetV0 } from "@iota/iota-sdk/faucet";
@@ -183,6 +184,9 @@ function convertService(did: string, json: any[]): IService[] {
     });
 }
 
+// fragment của revocation bitmap giống lúc tạo DID
+const REVOCATION_FRAGMENT = "#revocation";
+
 async function createDocumentForNetwork(publicKeyJwk: JsonWebKey, network: string, service?: any[]): Promise<IotaDocument> {
     // Create a new DID document with a placeholder DID.
     const document = new IotaDocument(network);
@@ -201,6 +205,15 @@ async function createDocumentForNetwork(publicKeyJwk: JsonWebKey, network: strin
         keyAgreementFragment,
     );
     document.insertMethod(keyAgreementMethod, MethodScope.KeyAgreement());
+
+    //Thêm RevocationBitmap service cho issuer
+    const didUrl = DIDUrl.parse(document.id().toString())
+        .join(REVOCATION_FRAGMENT); // did:iota:xxx#revocation
+
+    const revocationBitmap = new RevocationBitmap();
+    const revocationService: Service = revocationBitmap.toService(didUrl);
+
+    document.insertService(revocationService);
 
     if (service && service.length > 0) {
         if (validateIServiceList(service)) {
