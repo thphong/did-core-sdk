@@ -1,7 +1,8 @@
 import { NotImplementedError } from "../utils/errors";
 
 import { sign, verify, type KeyAlgorithm, arrBuftobase64u, b64uToArrBuf, algFromProofType, canonicalize } from "../crypto/index"; // <-- you implement or wrap jose library
-import { resolveDid } from "../did/index";
+import { DidDocument, resolveDid } from "../did/index";
+import { isRevokedFromServiceEndpoint } from "./revoke";
 
 export type VC = {
     context: string[];
@@ -18,6 +19,7 @@ export type VC = {
 };
 
 const REVOCATION_FRAGMENT = "#revocation";
+const REVOCATION_TYPE = "RevocationBitmap2022";
 function revocationStatus(
     issuerDid: string,
     index: number,
@@ -28,7 +30,7 @@ function revocationStatus(
     // revocationBitmapIndex là string. :contentReference[oaicite:2]{index=2}
     return {
         id: serviceDidUrl.toString(),
-        type: "RevocationBitmap2022",
+        type: REVOCATION_TYPE,
         revocationBitmapIndex: index,
     };
 }
@@ -170,6 +172,34 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
     return childVC;
 }
 
+export async function isVcRevoked(
+    didDocJson: DidDocument,
+    credential: VC,
+): Promise<boolean> {
+    const status = credential.credentialStatus;
+    if (!status) {
+        return false;
+    }
+    if (status.type !== REVOCATION_TYPE) {
+        throw new Error("VC không dùng RevocationBitmap2022");
+    }
+
+    const index = status.revocationBitmapIndex;
+    if (!Number.isInteger(index) || index < 0) {
+        throw new Error("revocationBitmapIndex không hợp lệ");
+    }
+
+    const serviceId = status.id; // bỏ query index nếu có
+    const service = (didDocJson.service || []).find(
+        (s: any) => s.id === serviceId && s.type === REVOCATION_TYPE,
+    );
+    if (!service) {
+        throw new Error(`Không tìm thấy RevocationBitmap service ${serviceId}`);
+    }
+
+    return isRevokedFromServiceEndpoint(service.serviceEndpoint.toString(), index);
+}
+
 async function verifySingleVC(
     vc: VC,
     options: { withMetaChecks: boolean }
@@ -219,7 +249,14 @@ async function verifySingleVC(
         throw new Error("Verify Credential: Proof is invalid");
     }
 
-    // 6. Metadata checks
+    //6. Check revoke
+    const isRevoke = await isVcRevoked(didDoc, vc);
+    if (isRevoke) {
+        throw new Error("Verify Credential: VC is revoked");
+    }
+
+
+    // 7. Metadata checks
     if (options.withMetaChecks) {
         const now = Date.now();
         if (vc.expirationDate && new Date(vc.expirationDate).getTime() < now) {
