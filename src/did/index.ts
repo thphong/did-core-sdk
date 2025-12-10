@@ -17,6 +17,13 @@ export async function resolveDid(did: string): Promise<DidDocument> {
     return handler.resolve(did);
 }
 
+export async function revokeVCFromIssuer(issuer: string, index: number, privateKey: JsonWebKey): Promise<DidDocument> {
+    const m = issuer.split(":")[1];
+    const handler = registry.get(m);
+    if (!handler) throw new Error(`No resolver registered for did:${m}`);
+    return handler.revoke(issuer, index, privateKey);
+}
+
 export function registerDidMethod(method: DidMethod) {
     registry.set(method.method, method);
 }

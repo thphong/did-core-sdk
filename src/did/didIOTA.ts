@@ -1,7 +1,7 @@
 // src/did/didIOTA.ts
 import type { DidDocument, DidMethod } from "./types";
 import { DidCache } from "./didCache";
-import { createIOTADocument, resolveIOTADocument } from "../iota/iota-utils";
+import { createIOTADocument, resolveIOTADocument, revokeVcOnDocument } from "../iota/iota-utils";
 import { IotaDocument } from "@iota/identity-wasm/web";
 //import { IotaDocument } from "@iota/identity-wasm/node/index.js";
 
@@ -56,5 +56,18 @@ export const didIOTA: DidMethod = {
         return {
             did, doc: doc.doc
         }
+    },
+    async revoke(issuer: string, index: number, privateKey: JsonWebKey): Promise<DidDocument> {
+        const iotaDoc = await resolveIOTADocument(issuer);
+        // Resolve issuer DID Document
+        if (!iotaDoc) {
+            throw new Error("Revoke VC: Can't resolve issuer did");
+        }
+        if (!Number.isInteger(index) || index === undefined || index < 0) {
+            throw new Error("Revoke VC: Index is wrong format");
+        }
+        const iotaDocRevoked: IotaDocument = await revokeVcOnDocument(iotaDoc, index, privateKey);
+        const doc: any = iotaDocRevoked.toJSON();
+        return doc;
     }
 };

@@ -13,15 +13,7 @@ import { IotaClient } from "@iota/iota-sdk/client";
 const NETWORK_NAME_FAUCET = 'testnet';
 const NETWORK_URL = 'https://api.testnet.iota.cafe';
 
-
-export async function createIOTADocument(publicKeyJwk: JsonWebKey, privateKey: JsonWebKey, service?: any[]): Promise<IotaDocument> {
-    // create new client to connect to IOTA network
-    const iotaClient = new IotaClient({ url: NETWORK_URL });
-    const network = await iotaClient.getChainIdentifier();
-
-    // create new unpublished document
-    const document = await createDocumentForNetwork(publicKeyJwk, network, service);
-
+async function publishIOTADocument(document: IotaDocument, privateKey: JsonWebKey): Promise<IotaDocument> {
     // create new client that offers identity related functions
     const identityClient = await getFundedClient(privateKey);
 
@@ -31,6 +23,26 @@ export async function createIOTADocument(publicKeyJwk: JsonWebKey, privateKey: J
         .buildAndExecute(identityClient);
 
     return identity.didDocument();
+}
+
+export async function createIOTADocument(publicKeyJwk: JsonWebKey, privateKey: JsonWebKey, service?: any[]): Promise<IotaDocument> {
+    // create new client to connect to IOTA network
+    const iotaClient = new IotaClient({ url: NETWORK_URL });
+    const network = await iotaClient.getChainIdentifier();
+
+    // create new unpublished document
+    const document = await createDocumentForNetwork(publicKeyJwk, network, service);
+
+    return await publishIOTADocument(document, privateKey);
+}
+
+export async function revokeVcOnDocument(document: IotaDocument, index: number, privateKey: JsonWebKey): Promise<IotaDocument> {
+    const serviceId = document.id().toString() + REVOCATION_FRAGMENT;
+
+    // serviceId là query string, IotaDocument sẽ tìm RevocationBitmap service tương ứng
+    document.revokeCredentials(serviceId, index);
+
+    return await publishIOTADocument(document, privateKey);
 }
 
 export async function resolveIOTADocument(iotadid: string): Promise<IotaDocument> {

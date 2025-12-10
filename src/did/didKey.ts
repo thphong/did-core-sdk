@@ -98,5 +98,8 @@ export const didKey: DidMethod = {
         const did = didFromEd25519Jwk(publicKeyJwk);
         const doc = docForDidKey(did);
         return { did, doc };
+    },
+    async revoke(issuer: string, index: number, privateKey: JsonWebKey): Promise<DidDocument> {
+        throw new Error("Can't revoke vc with this type");
     }
 };

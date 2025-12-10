@@ -28,4 +28,5 @@ export interface DidMethod {
     method: string; // "key", "web", ...
     create(publicKeyJwk: JsonWebKey, opts?: { privateKey?: JsonWebKey, didWeb?: string, service?: any[] }): Promise<{ did: string; doc: DidDocument }>;
     resolve(did: string): Promise<DidDocument>;
+    revoke(issuer: string, index: number, privateKey: JsonWebKey): Promise<DidDocument>;
 }

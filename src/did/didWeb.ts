@@ -131,6 +131,9 @@ export const didWeb: DidMethod = {
         }
 
         return { did: opts.didWeb, doc };
+    },
+    async revoke(issuer: string, index: number, privateKey: JsonWebKey): Promise<DidDocument> {
+        throw new Error("You must revoke vc in your DID Document");
     }
 };
 

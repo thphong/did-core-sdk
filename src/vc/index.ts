@@ -1,7 +1,5 @@
-import { NotImplementedError } from "../utils/errors";
-
 import { sign, verify, type KeyAlgorithm, arrBuftobase64u, b64uToArrBuf, algFromProofType, canonicalize } from "../crypto/index"; // <-- you implement or wrap jose library
-import { DidDocument, resolveDid } from "../did/index";
+import { DidDocument, resolveDid, revokeVCFromIssuer } from "../did/index";
 import { isRevokedFromServiceEndpoint } from "./revoke";
 
 export type VC = {
@@ -327,8 +325,17 @@ export async function getPublickeyIssuerFromVC(vc: VC):
     return { didSubject, publicKeyJwkIssuer, didOri, parentPublicKeyJwkIssuer };
 }
 
-export async function revokeVC(vc: VC): Promise<void> {
-    throw new NotImplementedError("revokeVC");
+export async function revokeVC(vc: VC, privateKey: JsonWebKey): Promise<DidDocument> {
+
+    if (!vc.credentialStatus) {
+        throw new Error("Revoke VC: VC doesn't have credentialStatus");
+    }
+    
+    const index = vc.credentialStatus.revocationBitmapIndex;
+    return await revokeVCFromIssuer(vc.issuer, index, privateKey);
+
+    //TODO
+    //Must revoke here
 }
 
 
