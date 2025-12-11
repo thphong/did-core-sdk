@@ -233,7 +233,8 @@ async function verifySingleVC(
         issuanceDate: vc.issuanceDate,
         subject: vc.subject,
         credentialSubject: vc.credentialSubject,
-        ...(vc.expirationDate && { expirationDate: vc.expirationDate })
+        ...(vc.expirationDate && { expirationDate: vc.expirationDate }),
+        ...(vc.credentialStatus && { credentialStatus: vc.credentialStatus })
     };
     const data = new TextEncoder().encode(canonicalize(payload)).buffer;
 

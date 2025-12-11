@@ -6,7 +6,7 @@ import { IotaDocument } from "@iota/identity-wasm/web";
 //import { IotaDocument } from "@iota/identity-wasm/node/index.js";
 
 const didCache = new DidCache();
-
+const cacheTtlMs = 0 * 60 * 1000;
 
 /** Quick check */
 function isIotaDid(did: string): boolean {
@@ -24,7 +24,6 @@ export const didIOTA: DidMethod = {
         const hit = didCache.get(did);
         if (hit) return hit;
 
-        const cacheTtlMs = 5 * 60 * 1000;
         const iotaDoc = await resolveIOTADocument(did);
         const doc: any = iotaDoc.toJSON()
 

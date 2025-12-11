@@ -5,6 +5,7 @@ import type { DidDocument, DidMethod } from "./types";
 import { DidCache } from "./didCache";
 
 const didCache = new DidCache();
+const cacheTtlMs = 5 * 60 * 1000;
 
 /**
  * Convert a did:web to its did.json URL.
@@ -66,7 +67,6 @@ export const didWeb: DidMethod = {
 
         const fetchFn = (globalThis as any).fetch as typeof fetch | undefined;
         const timeoutMs = 8000;
-        const cacheTtlMs = 5 * 60 * 1000;
 
         if (!fetchFn) {
             throw new Error(
