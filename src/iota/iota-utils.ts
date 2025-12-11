@@ -12,9 +12,16 @@ import { getFaucetHost, requestIotaFromFaucetV0 } from "@iota/iota-sdk/faucet";
 import { IotaClient } from "@iota/iota-sdk/client";
 const NETWORK_NAME_FAUCET = 'testnet';
 const NETWORK_URL = 'https://api.testnet.iota.cafe';
+const GAS_LIMIT = BigInt(50_000_000);
 
-async function publishIOTADocument(document: IotaDocument, privateKey: JsonWebKey): Promise<IotaDocument> {
-    // create new client that offers identity related functions
+export async function createIOTADocument(publicKeyJwk: JsonWebKey, privateKey: JsonWebKey, service?: any[]): Promise<IotaDocument> {
+    // create new client to connect to IOTA network
+    const iotaClient = new IotaClient({ url: NETWORK_URL });
+    const network = await iotaClient.getChainIdentifier();
+
+    // create new unpublished document
+    const document = await createDocumentForNetwork(publicKeyJwk, network, service);
+
     const identityClient = await getFundedClient(privateKey);
 
     const { output: identity } = await identityClient
@@ -25,24 +32,19 @@ async function publishIOTADocument(document: IotaDocument, privateKey: JsonWebKe
     return identity.didDocument();
 }
 
-export async function createIOTADocument(publicKeyJwk: JsonWebKey, privateKey: JsonWebKey, service?: any[]): Promise<IotaDocument> {
-    // create new client to connect to IOTA network
-    const iotaClient = new IotaClient({ url: NETWORK_URL });
-    const network = await iotaClient.getChainIdentifier();
-
-    // create new unpublished document
-    const document = await createDocumentForNetwork(publicKeyJwk, network, service);
-
-    return await publishIOTADocument(document, privateKey);
-}
-
 export async function revokeVcOnDocument(document: IotaDocument, index: number, privateKey: JsonWebKey): Promise<IotaDocument> {
+
     const serviceId = document.id().toString() + REVOCATION_FRAGMENT;
 
     // serviceId là query string, IotaDocument sẽ tìm RevocationBitmap service tương ứng
     document.revokeCredentials(serviceId, index);
 
-    return await publishIOTADocument(document, privateKey);
+    const identityClient = await getFundedClient(privateKey);
+
+    const iotaDoc = await identityClient
+        .publishDidDocumentUpdate(document, GAS_LIMIT);
+
+    return iotaDoc;
 }
 
 export async function resolveIOTADocument(iotadid: string): Promise<IotaDocument> {
@@ -256,7 +258,8 @@ async function getFundedClient(privateKey: JsonWebKey): Promise<IdentityClient> 
     const identityClient = await IdentityClient.create(identityClientReadOnly, signer);
 
     const balance = await iotaClient.getBalance({ owner: identityClient.senderAddress() });
-    if (balance.totalBalance == "0") {
+    
+    if (BigInt(balance.totalBalance) < GAS_LIMIT) {
         await requestFunds(identityClient.senderAddress());
     }
 
