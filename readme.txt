@@ -1,12 +1,17 @@
-1. Try it in another project pack & install
+1. Install all package
+npm install
+
+2. Pack the library into package
 npm run build
 npm pack          
-# in the consumer app:
+
+
+3. Install in the consumer app:
+npm i {folder}/did-core-sdk-1.0.6.tgz
+
+Example:
 npm i src/did-core/did-core-sdk-1.0.6.tgz
 npm i did-core-sdk-1.0.6.tgz
-
-2. run
-npm run dev
 
 
 
