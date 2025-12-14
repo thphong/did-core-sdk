@@ -258,7 +258,7 @@ async function getFundedClient(privateKey: JsonWebKey): Promise<IdentityClient> 
     const identityClient = await IdentityClient.create(identityClientReadOnly, signer);
 
     const balance = await iotaClient.getBalance({ owner: identityClient.senderAddress() });
-    
+
     if (BigInt(balance.totalBalance) < GAS_LIMIT) {
         await requestFunds(identityClient.senderAddress());
     }
