@@ -136,6 +136,17 @@ export async function createDelegatedVC(parentVC: VC, childSubject: string, clai
         }
     }
 
+    // Resolve issuer DID Document
+    const didDocParent = await resolveDid(parentVC.issuer);
+    if (!didDocParent) {
+        throw new Error("Create Credential: Can't resolve issuer did in parent VC");
+    }
+
+    const isRevoke = await isVcRevoked(didDocParent, parentVC);
+    if (isRevoke) {
+        throw new Error("Create Credential: parent VC is revoked");
+    }
+
     // VC con do B cấp cho C
     const childVC: VC = {
         context: [...new Set([...parentVC.context, "https://www.w3.org/2018/credentials/v1"])],
